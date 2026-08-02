@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Szervezeti Ábra (Valós Időben Közös)</title>
+<title>Szervezeti Ábra (Védett / Élő)</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <!-- Firebase SDK-k -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
@@ -70,40 +71,64 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
   white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:999}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* Modal */
-#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;
-  align-items:center;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .2s}
-#modal-overlay.open{opacity:1;pointer-events:all}
-#modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+/* Auth Screen & Modals */
+#auth-overlay, #modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;
+  align-items:center;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity .2s}
+#auth-overlay.open, #modal-overlay.open{opacity:1;pointer-events:all}
+
+.card-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;
   padding:24px;width:360px;max-width:94vw;box-shadow:var(--shadow-lg);
   transform:scale(.95);transition:transform .2s;max-height:90vh;overflow-y:auto}
-#modal-overlay.open #modal{transform:scale(1)}
-#modal h3{font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text)}
+#auth-overlay.open .card-box, #modal-overlay.open #modal{transform:scale(1)}
+
+.card-box h3{font-size:16px;font-weight:600;margin-bottom:14px;color:var(--text);text-align:center}
 .field-group{margin-bottom:11px}
 .field-group label{font-size:11px;color:var(--text2);font-weight:500;margin-bottom:3px;display:block}
-.field-group input[type=text]{width:100%;padding:7px 10px;border-radius:7px;border:1px solid var(--border);
+.field-group input[type=text], .field-group input[type=email], .field-group input[type=password]{
+  width:100%;padding:9px 12px;border-radius:7px;border:1px solid var(--border);
   background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;
   outline:none;transition:border-color .15s}
-.field-group input[type=text]:focus{border-color:var(--accent)}
+.field-group input:focus{border-color:var(--accent)}
 .field-group input[type=color]{width:100%;height:32px;padding:2px 3px;border-radius:7px;
   border:1px solid var(--border);background:var(--surface2);cursor:pointer;outline:none}
-.field-group input[type=color]:focus{border-color:var(--accent)}
+
 .modal-section-title{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;
   letter-spacing:.06em;margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
 .modal-btns{display:flex;gap:8px;margin-top:14px}
-.modal-btns button{flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);
+.modal-btns button{flex:1;padding:9px;border-radius:8px;border:1px solid var(--border);
   font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
 #modal-cancel{background:var(--surface2);color:var(--text2)}
 #modal-cancel:hover{border-color:var(--accent);color:var(--text)}
-#modal-ok{background:var(--accent);color:#fff;border-color:var(--accent)}
-#modal-ok:hover{opacity:.88}
+#modal-ok, .btn-auth{background:var(--accent);color:#fff;border-color:var(--accent)}
+#modal-ok:hover, .btn-auth:hover{opacity:.88}
+#auth-error{color:#ef4444;font-size:12px;margin-top:8px;text-align:center;display:none}
 </style>
 </head>
 <body>
 
+<!-- Bejelentkezési Képernyő -->
+<div id="auth-overlay" class="open">
+  <div class="card-box">
+    <h3>Bejelentkezés</h3>
+    <div class="field-group">
+      <label>Email cím</label>
+      <input type="email" id="auth-email" placeholder="nev@domain.com" autocomplete="email">
+    </div>
+    <div class="field-group">
+      <label>Jelszó</label>
+      <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div id="auth-error"></div>
+    <div class="modal-btns">
+      <button class="btn-auth" onclick="handleLogin()">Belépés</button>
+    </div>
+  </div>
+</div>
+
+<!-- Eszköztár -->
 <div id="toolbar">
-  <h1>Szervezeti <span>Ábra</span> (Élő)</h1>
-  <span id="save-dot" title="Felhő szinkronizáció statusz"></span>
+  <h1>Szervezeti <span>Ábra</span> (Védett)</h1>
+  <span id="save-dot" title="Felhő szinkronizáció státusz"></span>
   <div class="tb-sep"></div>
   <button class="tb-btn primary" onclick="openAddModal(null,true)">＋ Gyökér</button>
   <button class="tb-btn" id="btn-child" onclick="addChild()">＋ Alárendelt</button>
@@ -113,6 +138,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
   <button class="tb-btn primary" onclick="exportPDF()">⬇ PDF Export</button>
   <div class="tb-sep"></div>
   <button class="tb-btn" id="theme-btn" onclick="toggleTheme()">☀️</button>
+  <button class="tb-btn danger" onclick="handleLogout()" title="Kijelentkezés">🚪 Kilépés</button>
 </div>
 
 <div id="stage">
@@ -139,8 +165,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 
 <div id="toast"></div>
 
+<!-- Szerkesztő Modal -->
 <div id="modal-overlay" onclick="if(event.target===this)closeModal()">
-  <div id="modal">
+  <div id="modal" class="card-box">
     <h3 id="modal-title">Személy szerkesztése</h3>
     <div class="modal-section-title">Alapadatok</div>
     <div class="field-group"><label>Név</label>
@@ -179,8 +206,86 @@ const firebaseConfig = {
 
 // Firebase Inicializálása
 firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
 const db = firebase.database();
 const orgRef = db.ref('orgData');
+
+let dbListener = null;
+
+// ── Hitelesítés (Auth) Kezelése ─────────────────────────────────────────────
+auth.onAuthStateChanged((user) => {
+  const authOverlay = document.getElementById('auth-overlay');
+  if (user) {
+    authOverlay.classList.remove('open');
+    attachDbListener();
+    showToast('✓ Sikeres bejelentkezés');
+  } else {
+    authOverlay.classList.add('open');
+    detachDbListener();
+    tree = null;
+    render();
+  }
+});
+
+function handleLogin() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errDiv = document.getElementById('auth-error');
+  errDiv.style.display = 'none';
+
+  if (!email || !password) {
+    errDiv.textContent = 'Kérjük, töltsd ki az összes mezőt!';
+    errDiv.style.display = 'block';
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(email, password)
+    .catch((error) => {
+      errDiv.textContent = 'Hibás email cím vagy jelszó!';
+      errDiv.style.display = 'block';
+    });
+}
+
+function handleLogout() {
+  auth.signOut();
+}
+
+// Enter gombra bejelentkezés az Auth ablakban
+document.getElementById('auth-password').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') handleLogin();
+});
+
+// ── Firebase Realtime Szinkronizáció ─────────────────────────────────────────
+function saveToCloud() {
+  if (!auth.currentUser) return;
+  document.getElementById('save-dot').classList.add('syncing');
+  orgRef.set({ tree: tree || null, nextId }, (error) => {
+    document.getElementById('save-dot').classList.remove('syncing');
+    if (error) showToast('❌ Hiba a felhőbe mentéskor');
+  });
+}
+
+function attachDbListener() {
+  if (dbListener) return;
+  dbListener = orgRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+      tree = data.tree || null;
+      nextId = data.nextId || 100;
+      if (tree) fixDepths(tree, 0);
+    } else {
+      tree = null;
+    }
+    render();
+  });
+}
+
+function detachDbListener() {
+  if (dbListener) {
+    orgRef.off('value', dbListener);
+    dbListener = null;
+  }
+}
 
 // ── Konstansok & Állapot ─────────────────────────────────────────────────────
 const NODE_W = 190, H_GAP = 20, V_GAP = 60;
@@ -190,28 +295,6 @@ let tree = null, nextId = 1, selectedId = null;
 let modalMode = null, modalParentId = null, editingId = null;
 let vx = 0, vy = 0, vscale = 1;
 let isPanning = false, panStart = null, panOrigin = null;
-
-// ── Firebase Realtime Szinkronizáció ─────────────────────────────────────────
-function saveToCloud() {
-  document.getElementById('save-dot').classList.add('syncing');
-  orgRef.set({ tree: tree || null, nextId }, (error) => {
-    document.getElementById('save-dot').classList.remove('syncing');
-    if (error) showToast('❌ Hiba a felhőbe mentéskor');
-  });
-}
-
-// Hallgatjuk a valós idejű változásokat a felhőből
-orgRef.on('value', (snapshot) => {
-  const data = snapshot.val();
-  if (data) {
-    tree = data.tree || null;
-    nextId = data.nextId || 100;
-    if (tree) fixDepths(tree, 0);
-  } else {
-    tree = null;
-  }
-  render();
-});
 
 // ── Fa Segédfüggvények ──────────────────────────────────────────────────────
 function makeNode(name, role, nccInv, nccId, bcId, color) {

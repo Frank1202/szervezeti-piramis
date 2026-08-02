@@ -2,8 +2,8 @@
 <html lang="hu" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Szervezeti Ábra (Védett / Élő)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Szervezeti Ábra (Mobilbarát & Védett)</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -25,83 +25,85 @@
   --shadow:0 2px 12px rgba(0,0,0,.4);--shadow-lg:0 8px 32px rgba(0,0,0,.55);
   --accent:#818cf8;--toast-bg:#e8ecf8;--toast-fg:#1a1d2e;--toolbar-bg:#181c27;
 }
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden}
+*{box-sizing:border-box;margin:0;padding:0; -webkit-tap-highlight-color: transparent;}
+html,body{height:100%;overflow:hidden; touch-action: none;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);transition:background .3s,color .3s}
 
+/* Reszponzív, mobilon görgethető eszköztár */
 #toolbar{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--toolbar-bg);
   border-bottom:1px solid var(--border);padding:7px 14px;
-  display:flex;align-items:center;gap:7px;box-shadow:var(--shadow);transition:background .3s}
-#toolbar h1{font-size:13px;font-weight:600;color:var(--text);margin-right:auto;white-space:nowrap}
+  display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);transition:background .3s;
+  overflow-x:auto; -webkit-overflow-scrolling:touch;}
+#toolbar::-webkit-scrollbar { display: none; }
+#toolbar h1{font-size:14px;font-weight:600;color:var(--text);margin-right:auto;white-space:nowrap; flex-shrink:0;}
 #toolbar h1 span{color:var(--accent)}
-.tb-btn{display:flex;align-items:center;gap:4px;padding:6px 11px;border-radius:7px;
+.tb-btn{display:flex;align-items:center;gap:4px;padding:8px 12px;border-radius:8px;
   border:1px solid var(--border);background:var(--surface2);color:var(--text2);
-  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;
   transition:all .15s;white-space:nowrap;flex-shrink:0}
-.tb-btn:hover{background:var(--surface);color:var(--text);border-color:var(--accent)}
+.tb-btn:hover, .tb-btn:active{background:var(--surface);color:var(--text);border-color:var(--accent)}
 .tb-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-.tb-btn.primary:hover{opacity:.88}
 .tb-btn.danger{border-color:#ef4444;color:#ef4444}
-.tb-btn.danger:hover{background:#fef2f2;color:#dc2626}
-[data-theme="dark"] .tb-btn.danger:hover{background:#2a1414}
 .tb-btn:disabled{opacity:.38;cursor:not-allowed;pointer-events:none}
-#save-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;transition:background .3s}
+#save-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;transition:background .3s}
 #save-dot.syncing{background:#f59e0b}
-.tb-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
+.tb-sep{width:1px;height:20px;background:var(--border);flex-shrink:0}
 
-#stage{position:fixed;top:47px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab}
+#stage{position:fixed;top:50px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab; touch-action: none;}
 #stage.panning{cursor:grabbing}
 #stage svg{width:100%;height:100%;display:block}
 
-#zoom-ctrl{position:fixed;bottom:18px;right:18px;display:flex;flex-direction:column;gap:5px;z-index:50}
-.z-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);
-  background:var(--surface);color:var(--text2);font-size:15px;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);transition:all .15s}
-.z-btn:hover{border-color:var(--accent);color:var(--accent)}
+/* Nagyítás vezérlők mobilon kényelmes méretben */
+#zoom-ctrl{position:fixed;bottom:20px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:50}
+.z-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text2);font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-lg);transition:all .15s}
+.z-btn:active{border-color:var(--accent);color:var(--accent)}
 #zoom-label{font-size:10px;color:var(--text3);text-align:center;font-family:'DM Mono',monospace}
 
-#empty{position:fixed;top:47px;left:0;right:0;bottom:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:14px;text-align:center}
+#empty{position:fixed;top:50px;left:0;right:0;bottom:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;text-align:center;padding:20px;}
 #empty .big-icon{font-size:48px;opacity:.3}
 #empty p{color:var(--text2);font-size:14px}
 
 #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(14px);
-  background:var(--toast-bg);color:var(--toast-fg);padding:8px 16px;border-radius:9px;
-  font-size:12px;font-weight:500;opacity:0;pointer-events:none;transition:all .22s;
+  background:var(--toast-bg);color:var(--toast-fg);padding:10px 18px;border-radius:10px;
+  font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:all .22s;
   white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:999}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* Auth Screen & Modals */
+/* Képernyők & Modalok */
 #auth-overlay, #modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;
-  align-items:center;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity .2s}
+  align-items:center;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity .2s; padding:16px;}
 #auth-overlay.open, #modal-overlay.open{opacity:1;pointer-events:all}
 
 .card-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;
-  padding:24px;width:360px;max-width:94vw;box-shadow:var(--shadow-lg);
+  padding:20px;width:100%;max-width:380px;box-shadow:var(--shadow-lg);
   transform:scale(.95);transition:transform .2s;max-height:90vh;overflow-y:auto}
 #auth-overlay.open .card-box, #modal-overlay.open #modal{transform:scale(1)}
 
 .card-box h3{font-size:16px;font-weight:600;margin-bottom:14px;color:var(--text);text-align:center}
-.field-group{margin-bottom:11px}
-.field-group label{font-size:11px;color:var(--text2);font-weight:500;margin-bottom:3px;display:block}
+.field-group{margin-bottom:12px}
+.field-group label{font-size:12px;color:var(--text2);font-weight:500;margin-bottom:4px;display:block}
 .field-group input[type=text], .field-group input[type=email], .field-group input[type=password]{
-  width:100%;padding:9px 12px;border-radius:7px;border:1px solid var(--border);
-  background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;
+  width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;
   outline:none;transition:border-color .15s}
 .field-group input:focus{border-color:var(--accent)}
-.field-group input[type=color]{width:100%;height:32px;padding:2px 3px;border-radius:7px;
+.field-group input[type=color]{width:100%;height:38px;padding:2px 3px;border-radius:8px;
   border:1px solid var(--border);background:var(--surface2);cursor:pointer;outline:none}
 
 .modal-section-title{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;
   letter-spacing:.06em;margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
-.modal-btns{display:flex;gap:8px;margin-top:14px}
-.modal-btns button{flex:1;padding:9px;border-radius:8px;border:1px solid var(--border);
-  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+.modal-btns{display:flex;gap:10px;margin-top:16px}
+.modal-btns button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--border);
+  font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s}
 #modal-cancel{background:var(--surface2);color:var(--text2)}
-#modal-cancel:hover{border-color:var(--accent);color:var(--text)}
 #modal-ok, .btn-auth{background:var(--accent);color:#fff;border-color:var(--accent)}
-#modal-ok:hover, .btn-auth:hover{opacity:.88}
 #auth-error{color:#ef4444;font-size:12px;margin-top:8px;text-align:center;display:none}
+
+/* Mobilon kényelmes gombok a kártyákon */
+.node-actions rect { touch-action: manipulation; }
 </style>
 </head>
 <body>
@@ -127,7 +129,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 
 <!-- Eszköztár -->
 <div id="toolbar">
-  <h1>Szervezeti <span>Ábra</span> (Védett)</h1>
+  <h1>Szervezeti <span>Ábra</span></h1>
   <span id="save-dot" title="Felhő szinkronizáció státusz"></span>
   <div class="tb-sep"></div>
   <button class="tb-btn primary" onclick="openAddModal(null,true)">＋ Gyökér</button>
@@ -135,7 +137,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
   <button class="tb-btn danger" id="btn-del" onclick="deleteSelected()">✕ Törlés</button>
   <div class="tb-sep"></div>
   <button class="tb-btn" onclick="fitView()">⊡ Igazítás</button>
-  <button class="tb-btn primary" onclick="exportPDF()">⬇ PDF Export</button>
+  <button class="tb-btn primary" onclick="exportPDF()">⬇ PDF</button>
   <div class="tb-sep"></div>
   <button class="tb-btn" id="theme-btn" onclick="toggleTheme()">☀️</button>
   <button class="tb-btn danger" onclick="handleLogout()" title="Kijelentkezés">🚪 Kilépés</button>
@@ -204,7 +206,6 @@ const firebaseConfig = {
   appId: "1:516508964137:web:65e2291407f443f7ed1338"
 };
 
-// Firebase Inicializálása
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
@@ -246,16 +247,13 @@ function handleLogin() {
     });
 }
 
-function handleLogout() {
-  auth.signOut();
-}
+function handleLogout() { auth.signOut(); }
 
-// Enter gombra bejelentkezés az Auth ablakban
 document.getElementById('auth-password').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') handleLogin();
 });
 
-// ── Firebase Realtime Szinkronizáció ─────────────────────────────────────────
+// ── Realtime Szinkronizáció ────────────────────────────────────────────────
 function saveToCloud() {
   if (!auth.currentUser) return;
   document.getElementById('save-dot').classList.add('syncing');
@@ -277,6 +275,7 @@ function attachDbListener() {
       tree = null;
     }
     render();
+    requestAnimationFrame(fitView);
   });
 }
 
@@ -294,7 +293,6 @@ const DEFAULT_COLORS = ['#4f46e5','#0891b2','#059669','#d97706','#dc2626','#7c3a
 let tree = null, nextId = 1, selectedId = null;
 let modalMode = null, modalParentId = null, editingId = null;
 let vx = 0, vy = 0, vscale = 1;
-let isPanning = false, panStart = null, panOrigin = null;
 
 // ── Fa Segédfüggvények ──────────────────────────────────────────────────────
 function makeNode(name, role, nccInv, nccId, bcId, color) {
@@ -328,7 +326,7 @@ function allNodes(node, arr = []) {
   return arr;
 }
 
-// ── Elrendezés (Layout) ─────────────────────────────────────────────────────
+// ── Elrendezés ──────────────────────────────────────────────────────────────
 function subtreeWidth(node) {
   if (!node.children || !node.children.length) return NODE_W;
   const cw = node.children.reduce((s,c) => s + subtreeWidth(c), 0) + H_GAP*(node.children.length-1);
@@ -385,6 +383,8 @@ function render() {
   edgesL.innerHTML = eHTML;
 
   let nHTML = '';
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
   nodes.forEach(node => {
     const bg = node.color || DEFAULT_COLORS[Math.min(node.depth, DEFAULT_COLORS.length-1)];
     const avatarLight = lighten(bg, 52);
@@ -400,6 +400,8 @@ function render() {
 
     const hasIds = idRows.length > 0;
     const cardH = hasIds ? 38 + 6 + idRows.length * 15 + 10 : 44;
+    // Mobilon mindig látszódnak az akció gombok a kártyákon
+    const actionOpacity = isTouchDevice ? "1" : "0";
 
     nHTML += `
     <g transform="translate(${node._x},${node._y})" class="node-g" data-id="${node.id}" onclick="selectNode(${node.id})">
@@ -417,21 +419,23 @@ function render() {
         <text x="12" y="${51 + i * 15}" fill="rgba(255,255,255,.5)" font-size="8.5" font-family="DM Sans,sans-serif" style="pointer-events:none">${esc(row.label)}</text>
         <text x="100" y="${51 + i * 15}" fill="rgba(255,255,255,.92)" font-size="8.5" font-family="DM Mono,monospace" font-weight="500" style="pointer-events:none">${esc(row.val)}</text>
       `).join('')}` : ''}
-      <g class="node-actions" opacity="0" style="pointer-events:none">
-        <rect x="148" y="3" width="18" height="18" rx="5" fill="rgba(255,255,255,.22)" style="cursor:pointer;pointer-events:all" onclick="event.stopPropagation();openEditModal(${node.id})"/>
-        <text x="157" y="12" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="11" style="pointer-events:none">✎</text>
-        <rect x="169" y="3" width="18" height="18" rx="5" fill="rgba(255,255,255,.22)" style="cursor:pointer;pointer-events:all" onclick="event.stopPropagation();addChildTo(${node.id})"/>
-        <text x="178" y="12" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="13" style="pointer-events:none">＋</text>
+      <g class="node-actions" opacity="${actionOpacity}">
+        <rect x="136" y="2" width="24" height="24" rx="6" fill="rgba(255,255,255,.25)" style="cursor:pointer;" onclick="event.stopPropagation();openEditModal(${node.id})"/>
+        <text x="148" y="14" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="12" style="pointer-events:none">✎</text>
+        <rect x="164" y="2" width="24" height="24" rx="6" fill="rgba(255,255,255,.25)" style="cursor:pointer;" onclick="event.stopPropagation();addChildTo(${node.id})"/>
+        <text x="176" y="14" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="14" style="pointer-events:none">＋</text>
       </g>
     </g>`;
   });
   nodesL.innerHTML = nHTML;
 
-  document.querySelectorAll('.node-g').forEach(g => {
-    const acts = g.querySelector('.node-actions');
-    g.addEventListener('mouseenter', () => { acts.setAttribute('opacity','1'); acts.style.pointerEvents='all'; });
-    g.addEventListener('mouseleave', () => { acts.setAttribute('opacity','0'); acts.style.pointerEvents='none'; });
-  });
+  if (!isTouchDevice) {
+    document.querySelectorAll('.node-g').forEach(g => {
+      const acts = g.querySelector('.node-actions');
+      g.addEventListener('mouseenter', () => { acts.setAttribute('opacity','1'); });
+      g.addEventListener('mouseleave', () => { acts.setAttribute('opacity','0'); });
+    });
+  }
 }
 
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -444,11 +448,12 @@ function onFieldInput(id, field, val) {
   saveToCloud();
 }
 
-// ── Kamerakezelés (Pan & Zoom) ──────────────────────────────────────────────
+// ── Egér & Érintésvezérlés (Touch + Pinch-to-Zoom) ──────────────────────────
 function applyTransform() {
   document.getElementById('viewport').setAttribute('transform',`translate(${vx},${vy}) scale(${vscale})`);
   document.getElementById('zoom-label').textContent = Math.round(vscale*100)+'%';
 }
+
 function zoom(factor, cx, cy) {
   const stage = document.getElementById('stage');
   const r = stage.getBoundingClientRect();
@@ -457,6 +462,7 @@ function zoom(factor, cx, cy) {
   vx = px-(px-vx)*(ns/vscale); vy = py-(py-vy)*(ns/vscale); vscale = ns;
   applyTransform();
 }
+
 function fitView() {
   if (!tree) return;
   computeLayout();
@@ -467,13 +473,17 @@ function fitView() {
   const maxX=Math.max(...xs)+NODE_W, maxY=Math.max(...ys)+100;
   const tw=maxX-minX, th=maxY-minY;
   const stage=document.getElementById('stage');
-  const sw=stage.clientWidth, sh=stage.clientHeight, pad=48;
-  const scale=Math.min((sw-pad*2)/tw,(sh-pad*2)/th,1.5);
+  const sw=stage.clientWidth, sh=stage.clientHeight, pad=24;
+  const scale=Math.min((sw-pad*2)/tw,(sh-pad*2)/th,1.2);
   vscale=scale; vx=(sw-tw*scale)/2-minX*scale; vy=(sh-th*scale)/2-minY*scale;
   applyTransform();
 }
 
 const stage = document.getElementById('stage');
+let isPanning = false, panStart = {x:0, y:0}, panOrigin = {x:0, y:0};
+let touchStartDist = 0, initialScale = 1;
+
+// Egér események (Asztali PC)
 stage.addEventListener('mousedown', e => {
   if (e.target.closest('.node-g')||e.target.closest('input')) return;
   isPanning=true; panStart={x:e.clientX,y:e.clientY}; panOrigin={x:vx,y:vy};
@@ -490,6 +500,50 @@ stage.addEventListener('wheel', e => {
   const r=stage.getBoundingClientRect();
   zoom(e.deltaY<0?1.1:0.9, e.clientX-r.left, e.clientY-r.top);
 }, {passive:false});
+
+// Érintő (Touch) események (Mobil/Tablet)
+stage.addEventListener('touchstart', e => {
+  if (e.target.closest('input') || e.target.closest('.modal-btns')) return;
+  if (e.touches.length === 1) {
+    isPanning = true;
+    panStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    panOrigin = { x: vx, y: vy };
+  } else if (e.touches.length === 2) {
+    isPanning = false;
+    touchStartDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    initialScale = vscale;
+  }
+}, {passive: true});
+
+stage.addEventListener('touchmove', e => {
+  if (isPanning && e.touches.length === 1) {
+    vx = panOrigin.x + (e.touches[0].clientX - panStart.x);
+    vy = panOrigin.y + (e.touches[0].clientY - panStart.y);
+    applyTransform();
+  } else if (e.touches.length === 2) {
+    const dist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    if (touchStartDist > 0) {
+      const factor = dist / touchStartDist;
+      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - 50;
+      const ns = Math.min(4, Math.max(0.08, initialScale * factor));
+      vx = midX - (midX - vx) * (ns / vscale);
+      vy = midY - (midY - vy) * (ns / vscale);
+      vscale = ns;
+      applyTransform();
+    }
+  }
+}, {passive: true});
+
+stage.addEventListener('touchend', () => { isPanning = false; touchStartDist = 0; });
+
+window.addEventListener('resize', () => { if(tree) fitView(); });
 
 // ── Csomópont Műveletek ─────────────────────────────────────────────────────
 function selectNode(id) { selectedId=(selectedId===id)?null:id; render(); applyTransform(); }
@@ -519,7 +573,7 @@ function openAddModal(parentId, isRoot=false) {
   fillModal(null);
   document.getElementById('inp-color').value = DEFAULT_COLORS[Math.min(depth, DEFAULT_COLORS.length-1)];
   document.getElementById('modal-overlay').classList.add('open');
-  setTimeout(()=>document.getElementById('inp-name').focus(),60);
+  setTimeout(()=>document.getElementById('inp-name').focus(),100);
 }
 
 function openEditModal(id) {
@@ -528,7 +582,7 @@ function openEditModal(id) {
   document.getElementById('modal-title').textContent = 'Személy szerkesztése';
   fillModal(node);
   document.getElementById('modal-overlay').classList.add('open');
-  setTimeout(()=>document.getElementById('inp-name').focus(),60);
+  setTimeout(()=>document.getElementById('inp-name').focus(),100);
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }

@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="hu" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Szervezeti Ábra (Valós Időben Közös)</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- Firebase SDK-k -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+:root{
+  --bg:#f4f6fa;--surface:#fff;--surface2:#f0f2f8;--border:#e2e6f0;
+  --text:#1a1d2e;--text2:#5a5f7a;--text3:#9096b5;
+  --shadow:0 2px 12px rgba(80,90,160,.10);--shadow-lg:0 8px 32px rgba(80,90,160,.16);
+  --accent:#5b5ef4;--toast-bg:#1a1d2e;--toast-fg:#f4f6fa;--toolbar-bg:#fff;
+}
+[data-theme="dark"]{
+  --bg:#0f1117;--surface:#181c27;--surface2:#1e2333;--border:#2a2f45;
+  --text:#e8ecf8;--text2:#8b92b8;--text3:#4a5070;
+  --shadow:0 2px 12px rgba(0,0,0,.4);--shadow-lg:0 8px 32px rgba(0,0,0,.55);
+  --accent:#818cf8;--toast-bg:#e8ecf8;--toast-fg:#1a1d2e;--toolbar-bg:#181c27;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);transition:background .3s,color .3s}
+
+#toolbar{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--toolbar-bg);
+  border-bottom:1px solid var(--border);padding:7px 14px;
+  display:flex;align-items:center;gap:7px;box-shadow:var(--shadow);transition:background .3s}
+#toolbar h1{font-size:13px;font-weight:600;color:var(--text);margin-right:auto;white-space:nowrap}
+#toolbar h1 span{color:var(--accent)}
+.tb-btn{display:flex;align-items:center;gap:4px;padding:6px 11px;border-radius:7px;
+  border:1px solid var(--border);background:var(--surface2);color:var(--text2);
+  font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;
+  transition:all .15s;white-space:nowrap;flex-shrink:0}
+.tb-btn:hover{background:var(--surface);color:var(--text);border-color:var(--accent)}
+.tb-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tb-btn.primary:hover{opacity:.88}
+.tb-btn.danger{border-color:#ef4444;color:#ef4444}
+.tb-btn.danger:hover{background:#fef2f2;color:#dc2626}
+[data-theme="dark"] .tb-btn.danger:hover{background:#2a1414}
+.tb-btn:disabled{opacity:.38;cursor:not-allowed;pointer-events:none}
+#save-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;transition:background .3s}
+#save-dot.syncing{background:#f59e0b}
+.tb-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
+
+#stage{position:fixed;top:47px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab}
+#stage.panning{cursor:grabbing}
+#stage svg{width:100%;height:100%;display:block}
+
+#zoom-ctrl{position:fixed;bottom:18px;right:18px;display:flex;flex-direction:column;gap:5px;z-index:50}
+.z-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text2);font-size:15px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);transition:all .15s}
+.z-btn:hover{border-color:var(--accent);color:var(--accent)}
+#zoom-label{font-size:10px;color:var(--text3);text-align:center;font-family:'DM Mono',monospace}
+
+#empty{position:fixed;top:47px;left:0;right:0;bottom:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;text-align:center}
+#empty .big-icon{font-size:48px;opacity:.3}
+#empty p{color:var(--text2);font-size:14px}
+
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(14px);
+  background:var(--toast-bg);color:var(--toast-fg);padding:8px 16px;border-radius:9px;
+  font-size:12px;font-weight:500;opacity:0;pointer-events:none;transition:all .22s;
+  white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:999}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Modal */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;
+  align-items:center;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .2s}
+#modal-overlay.open{opacity:1;pointer-events:all}
+#modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:24px;width:360px;max-width:94vw;box-shadow:var(--shadow-lg);
+  transform:scale(.95);transition:transform .2s;max-height:90vh;overflow-y:auto}
+#modal-overlay.open #modal{transform:scale(1)}
+#modal h3{font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text)}
+.field-group{margin-bottom:11px}
+.field-group label{font-size:11px;color:var(--text2);font-weight:500;margin-bottom:3px;display:block}
+.field-group input[type=text]{width:100%;padding:7px 10px;border-radius:7px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;
+  outline:none;transition:border-color .15s}
+.field-group input[type=text]:focus{border-color:var(--accent)}
+.field-group input[type=color]{width:100%;height:32px;padding:2px 3px;border-radius:7px;
+  border:1px solid var(--border);background:var(--surface2);cursor:pointer;outline:none}
+.field-group input[type=color]:focus{border-color:var(--accent)}
+.modal-section-title{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;
+  letter-spacing:.06em;margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.modal-btns{display:flex;gap:8px;margin-top:14px}
+.modal-btns button{flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+#modal-cancel{background:var(--surface2);color:var(--text2)}
+#modal-cancel:hover{border-color:var(--accent);color:var(--text)}
+#modal-ok{background:var(--accent);color:#fff;border-color:var(--accent)}
+#modal-ok:hover{opacity:.88}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>Szervezeti <span>Ábra</span> (Élő)</h1>
+  <span id="save-dot" title="Felhő szinkronizáció statusz"></span>
+  <div class="tb-sep"></div>
+  <button class="tb-btn primary" onclick="openAddModal(null,true)">＋ Gyökér</button>
+  <button class="tb-btn" id="btn-child" onclick="addChild()">＋ Alárendelt</button>
+  <button class="tb-btn danger" id="btn-del" onclick="deleteSelected()">✕ Törlés</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="fitView()">⊡ Igazítás</button>
+  <button class="tb-btn primary" onclick="exportPDF()">⬇ PDF Export</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="theme-btn" onclick="toggleTheme()">☀️</button>
+</div>
+
+<div id="stage">
+  <svg id="svg-root" xmlns="http://www.w3.org/2000/svg">
+    <g id="viewport">
+      <g id="edges-layer"></g>
+      <g id="nodes-layer"></g>
+    </g>
+  </svg>
+</div>
+
+<div id="empty" style="display: none;">
+  <div class="big-icon">🏢</div>
+  <p>Még nincs senki a szervezetben.</p>
+  <button class="tb-btn primary" style="margin-top:8px" onclick="openAddModal(null,true)">＋ Első személy hozzáadása</button>
+</div>
+
+<div id="zoom-ctrl">
+  <button class="z-btn" onclick="zoom(1.2)">＋</button>
+  <div id="zoom-label">100%</div>
+  <button class="z-btn" onclick="zoom(1/1.2)">－</button>
+  <button class="z-btn" onclick="fitView()" style="font-size:12px">⊡</button>
+</div>
+
+<div id="toast"></div>
+
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal">
+    <h3 id="modal-title">Személy szerkesztése</h3>
+    <div class="modal-section-title">Alapadatok</div>
+    <div class="field-group"><label>Név</label>
+      <input type="text" id="inp-name" placeholder="Pl. Kovács János" autocomplete="off"></div>
+
+    <div class="modal-section-title">Azonosítók</div>
+    <div class="field-group"><label>NCC INV:</label>
+      <input type="text" id="inp-ncc-inv" placeholder="" autocomplete="off"></div>
+    <div class="field-group"><label>NCC ID:</label>
+      <input type="text" id="inp-ncc-id" placeholder="" autocomplete="off"></div>
+    <div class="field-group"><label>BC ID:</label>
+      <input type="text" id="inp-bc-id" placeholder="" autocomplete="off"></div>
+
+    <div class="modal-section-title">Megjelenés</div>
+    <div class="field-group"><label>Kártya színe</label>
+      <input type="color" id="inp-color" value="#4f46e5"></div>
+
+    <div class="modal-btns">
+      <button id="modal-cancel" onclick="closeModal()">Mégse</button>
+      <button id="modal-ok" onclick="confirmModal()">Mentés</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Firebase Konfiguráció ───────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyBCl7HNd5DVRIkcByFpew_cFJSvSSBfn68",
+  authDomain: "szervezeti-piramis.firebaseapp.com",
+  databaseURL: "https://szervezeti-piramis-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "szervezeti-piramis",
+  storageBucket: "szervezeti-piramis.firebasestorage.app",
+  messagingSenderId: "516508964137",
+  appId: "1:516508964137:web:65e2291407f443f7ed1338"
+};
+
+// Firebase Inicializálása
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const orgRef = db.ref('orgData');
+
+// ── Konstansok & Állapot ─────────────────────────────────────────────────────
+const NODE_W = 190, H_GAP = 20, V_GAP = 60;
+const DEFAULT_COLORS = ['#4f46e5','#0891b2','#059669','#d97706','#dc2626','#7c3aed'];
+
+let tree = null, nextId = 1, selectedId = null;
+let modalMode = null, modalParentId = null, editingId = null;
+let vx = 0, vy = 0, vscale = 1;
+let isPanning = false, panStart = null, panOrigin = null;
+
+// ── Firebase Realtime Szinkronizáció ─────────────────────────────────────────
+function saveToCloud() {
+  document.getElementById('save-dot').classList.add('syncing');
+  orgRef.set({ tree: tree || null, nextId }, (error) => {
+    document.getElementById('save-dot').classList.remove('syncing');
+    if (error) showToast('❌ Hiba a felhőbe mentéskor');
+  });
+}
+
+// Hallgatjuk a valós idejű változásokat a felhőből
+orgRef.on('value', (snapshot) => {
+  const data = snapshot.val();
+  if (data) {
+    tree = data.tree || null;
+    nextId = data.nextId || 100;
+    if (tree) fixDepths(tree, 0);
+  } else {
+    tree = null;
+  }
+  render();
+});
+
+// ── Fa Segédfüggvények ──────────────────────────────────────────────────────
+function makeNode(name, role, nccInv, nccId, bcId, color) {
+  return { id: nextId++, name, role,
+    nccInv: nccInv||'', nccId: nccId||'', bcId: bcId||'',
+    color: color || DEFAULT_COLORS[0],
+    depth: 0, children: [] };
+}
+function findNode(node, id) {
+  if (!node) return null;
+  if (node.id === id) return node;
+  for (const c of (node.children || [])) { const f = findNode(c, id); if (f) return f; }
+  return null;
+}
+function deleteNodeById(node, id) {
+  if (!node) return;
+  node.children = (node.children || []).filter(c => c.id !== id);
+  node.children.forEach(c => deleteNodeById(c, id));
+}
+function fixDepths(node, d) {
+  if (!node) return;
+  node.depth = d;
+  if (!node.children) node.children = [];
+  if (!node.color) node.color = DEFAULT_COLORS[Math.min(d, DEFAULT_COLORS.length-1)];
+  node.children.forEach(c => fixDepths(c, d + 1));
+}
+function allNodes(node, arr = []) {
+  if (!node) return arr;
+  arr.push(node);
+  (node.children || []).forEach(c => allNodes(c, arr));
+  return arr;
+}
+
+// ── Elrendezés (Layout) ─────────────────────────────────────────────────────
+function subtreeWidth(node) {
+  if (!node.children || !node.children.length) return NODE_W;
+  const cw = node.children.reduce((s,c) => s + subtreeWidth(c), 0) + H_GAP*(node.children.length-1);
+  return Math.max(NODE_W, cw);
+}
+function assignXY(node, x, y) {
+  const sw = subtreeWidth(node);
+  node._x = x + sw/2 - NODE_W/2;
+  node._y = y;
+  let cx = x;
+  for (const c of (node.children || [])) {
+    assignXY(c, cx, y + 100 + V_GAP);
+    cx += subtreeWidth(c) + H_GAP;
+  }
+}
+function computeLayout() { if (tree) assignXY(tree, 0, 0); }
+
+// ── Renderelés ──────────────────────────────────────────────────────────────
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return [r,g,b];
+}
+function lighten(hex, amt=55) {
+  const [r,g,b] = hexToRgb(hex);
+  return `rgb(${Math.min(255,r+amt)},${Math.min(255,g+amt)},${Math.min(255,b+amt)})`;
+}
+
+function render() {
+  const empty = document.getElementById('empty');
+  const edgesL = document.getElementById('edges-layer');
+  const nodesL = document.getElementById('nodes-layer');
+  document.getElementById('btn-child').disabled = !selectedId;
+  document.getElementById('btn-del').disabled = !selectedId;
+
+  if (!tree) {
+    edgesL.innerHTML = ''; nodesL.innerHTML = '';
+    empty.style.display = 'flex'; return;
+  }
+  empty.style.display = 'none';
+  computeLayout();
+  const nodes = allNodes(tree);
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const connColor = isDark ? '#2e3655' : '#d1d9ee';
+
+  let eHTML = '';
+  function drawEdges(n) {
+    (n.children || []).forEach(c => {
+      const x1=n._x+NODE_W/2, y1=n._y+99, x2=c._x+NODE_W/2, y2=c._y, my=(y1+y2)/2;
+      eHTML += `<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" fill="none" stroke="${connColor}" stroke-width="1.5" stroke-linecap="round"/>`;
+      drawEdges(c);
+    });
+  }
+  drawEdges(tree);
+  edgesL.innerHTML = eHTML;
+
+  let nHTML = '';
+  nodes.forEach(node => {
+    const bg = node.color || DEFAULT_COLORS[Math.min(node.depth, DEFAULT_COLORS.length-1)];
+    const avatarLight = lighten(bg, 52);
+    const ini = initials(node.name);
+    const sel = selectedId === node.id;
+    const selStroke = sel ? `stroke="#fff" stroke-width="2.5"` : '';
+
+    const idRows = [
+      { label: 'NCC INV:', val: node.nccInv },
+      { label: 'NCC ID:',  val: node.nccId  },
+      { label: 'BC ID:',   val: node.bcId   },
+    ].filter(r => r.val);
+
+    const hasIds = idRows.length > 0;
+    const cardH = hasIds ? 38 + 6 + idRows.length * 15 + 10 : 44;
+
+    nHTML += `
+    <g transform="translate(${node._x},${node._y})" class="node-g" data-id="${node.id}" onclick="selectNode(${node.id})">
+      <rect x="0" y="0" width="${NODE_W}" height="${cardH}" rx="11" fill="${bg}" ${selStroke} style="filter:drop-shadow(0 2px 8px rgba(0,0,0,.22));cursor:pointer"/>
+      <circle cx="24" cy="22" r="14" fill="${avatarLight}" opacity=".38"/>
+      <text x="24" y="22" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="600" font-family="DM Mono,monospace" style="pointer-events:none">${esc(ini)}</text>
+      <foreignObject x="46" y="2" width="136" height="22">
+        <input xmlns="http://www.w3.org/1999/xhtml" class="svg-name" value="${esc(node.name)}"
+          style="width:100%;background:transparent;border:none;outline:none;color:#fff;font-family:DM Sans,sans-serif;font-size:12px;font-weight:600;padding:0;line-height:1;cursor:text"
+          onchange="onFieldInput(${node.id},'name',this.value)" onclick="event.stopPropagation()" placeholder="Név"/>
+      </foreignObject>
+      ${hasIds ? `
+      <line x1="10" y1="38" x2="180" y2="38" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+      ${idRows.map((row, i) => `
+        <text x="12" y="${51 + i * 15}" fill="rgba(255,255,255,.5)" font-size="8.5" font-family="DM Sans,sans-serif" style="pointer-events:none">${esc(row.label)}</text>
+        <text x="100" y="${51 + i * 15}" fill="rgba(255,255,255,.92)" font-size="8.5" font-family="DM Mono,monospace" font-weight="500" style="pointer-events:none">${esc(row.val)}</text>
+      `).join('')}` : ''}
+      <g class="node-actions" opacity="0" style="pointer-events:none">
+        <rect x="148" y="3" width="18" height="18" rx="5" fill="rgba(255,255,255,.22)" style="cursor:pointer;pointer-events:all" onclick="event.stopPropagation();openEditModal(${node.id})"/>
+        <text x="157" y="12" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="11" style="pointer-events:none">✎</text>
+        <rect x="169" y="3" width="18" height="18" rx="5" fill="rgba(255,255,255,.22)" style="cursor:pointer;pointer-events:all" onclick="event.stopPropagation();addChildTo(${node.id})"/>
+        <text x="178" y="12" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="13" style="pointer-events:none">＋</text>
+      </g>
+    </g>`;
+  });
+  nodesL.innerHTML = nHTML;
+
+  document.querySelectorAll('.node-g').forEach(g => {
+    const acts = g.querySelector('.node-actions');
+    g.addEventListener('mouseenter', () => { acts.setAttribute('opacity','1'); acts.style.pointerEvents='all'; });
+    g.addEventListener('mouseleave', () => { acts.setAttribute('opacity','0'); acts.style.pointerEvents='none'; });
+  });
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function initials(name) { return String(name||'').split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'?'; }
+
+function onFieldInput(id, field, val) {
+  const n = findNode(tree, id);
+  if (!n) return;
+  n[field] = val;
+  saveToCloud();
+}
+
+// ── Kamerakezelés (Pan & Zoom) ──────────────────────────────────────────────
+function applyTransform() {
+  document.getElementById('viewport').setAttribute('transform',`translate(${vx},${vy}) scale(${vscale})`);
+  document.getElementById('zoom-label').textContent = Math.round(vscale*100)+'%';
+}
+function zoom(factor, cx, cy) {
+  const stage = document.getElementById('stage');
+  const r = stage.getBoundingClientRect();
+  const px = cx ?? r.width/2, py = cy ?? r.height/2;
+  const ns = Math.min(4, Math.max(0.08, vscale*factor));
+  vx = px-(px-vx)*(ns/vscale); vy = py-(py-vy)*(ns/vscale); vscale = ns;
+  applyTransform();
+}
+function fitView() {
+  if (!tree) return;
+  computeLayout();
+  const nodes = allNodes(tree);
+  if (!nodes.length) return;
+  const xs = nodes.map(n=>n._x), ys = nodes.map(n=>n._y);
+  const minX=Math.min(...xs), minY=Math.min(...ys);
+  const maxX=Math.max(...xs)+NODE_W, maxY=Math.max(...ys)+100;
+  const tw=maxX-minX, th=maxY-minY;
+  const stage=document.getElementById('stage');
+  const sw=stage.clientWidth, sh=stage.clientHeight, pad=48;
+  const scale=Math.min((sw-pad*2)/tw,(sh-pad*2)/th,1.5);
+  vscale=scale; vx=(sw-tw*scale)/2-minX*scale; vy=(sh-th*scale)/2-minY*scale;
+  applyTransform();
+}
+
+const stage = document.getElementById('stage');
+stage.addEventListener('mousedown', e => {
+  if (e.target.closest('.node-g')||e.target.closest('input')) return;
+  isPanning=true; panStart={x:e.clientX,y:e.clientY}; panOrigin={x:vx,y:vy};
+  stage.classList.add('panning');
+});
+window.addEventListener('mousemove', e => {
+  if (!isPanning) return;
+  vx=panOrigin.x+(e.clientX-panStart.x); vy=panOrigin.y+(e.clientY-panStart.y);
+  applyTransform();
+});
+window.addEventListener('mouseup', () => { isPanning=false; stage.classList.remove('panning'); });
+stage.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r=stage.getBoundingClientRect();
+  zoom(e.deltaY<0?1.1:0.9, e.clientX-r.left, e.clientY-r.top);
+}, {passive:false});
+
+// ── Csomópont Műveletek ─────────────────────────────────────────────────────
+function selectNode(id) { selectedId=(selectedId===id)?null:id; render(); applyTransform(); }
+function addChild() { if (selectedId) openAddModal(selectedId); }
+function addChildTo(id) { openAddModal(id); }
+function deleteSelected() {
+  if (!selectedId||!tree) return;
+  if (tree.id===selectedId) tree=null; else deleteNodeById(tree,selectedId);
+  selectedId=null; saveToCloud();
+}
+
+// ── Modal kezelés ───────────────────────────────────────────────────────────
+function fillModal(node) {
+  document.getElementById('inp-name').value    = node ? node.name    : '';
+  document.getElementById('inp-ncc-inv').value = node ? node.nccInv : '';
+  document.getElementById('inp-ncc-id').value  = node ? node.nccId  : '';
+  document.getElementById('inp-bc-id').value   = node ? node.bcId   : '';
+  document.getElementById('inp-color').value   = node ? (node.color||'#4f46e5') : '#4f46e5';
+}
+
+function openAddModal(parentId, isRoot=false) {
+  modalMode = isRoot ? 'root' : 'child';
+  modalParentId = parentId; editingId = null;
+  document.getElementById('modal-title').textContent = isRoot ? 'Gyökér személy' : 'Alárendelt hozzáadása';
+  let depth = 0;
+  if (!isRoot && parentId) { const p = findNode(tree, parentId); if (p) depth = p.depth + 1; }
+  fillModal(null);
+  document.getElementById('inp-color').value = DEFAULT_COLORS[Math.min(depth, DEFAULT_COLORS.length-1)];
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('inp-name').focus(),60);
+}
+
+function openEditModal(id) {
+  const node = findNode(tree, id); if (!node) return;
+  modalMode = 'edit'; editingId = id;
+  document.getElementById('modal-title').textContent = 'Személy szerkesztése';
+  fillModal(node);
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('inp-name').focus(),60);
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+function confirmModal() {
+  const name    = document.getElementById('inp-name').value.trim()    || 'Névtelen';
+  const nccInv  = document.getElementById('inp-ncc-inv').value.trim();
+  const nccId   = document.getElementById('inp-ncc-id').value.trim();
+  const bcId    = document.getElementById('inp-bc-id').value.trim();
+  const color   = document.getElementById('inp-color').value;
+
+  if (modalMode === 'edit') {
+    const node = findNode(tree, editingId);
+    if (node) { node.name=name; node.nccInv=nccInv; node.nccId=nccId; node.bcId=bcId; node.color=color; }
+  } else if (modalMode === 'root') {
+    tree = makeNode(name,'',nccInv,nccId,bcId,color); tree.depth=0; selectedId=null;
+  } else {
+    const parent = findNode(tree, modalParentId);
+    if (parent) {
+      if (!parent.children) parent.children = [];
+      const child = makeNode(name,'',nccInv,nccId,bcId,color);
+      child.depth = parent.depth+1;
+      parent.children.push(child);
+    }
+  }
+  closeModal();
+  saveToCloud();
+}
+
+// ── Téma & Toast ─────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  document.getElementById('theme-btn').textContent = next==='dark'?'☀️':'🌙';
+  render(); applyTransform();
+}
+function showToast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+// ── PDF Export ──────────────────────────────────────────────────────────────
+function exportPDF() {
+  if (!tree) { showToast('Nincs adat'); return; }
+  showToast('⏳ PDF készítése...');
+  computeLayout();
+  const nodes = allNodes(tree);
+  const minX = Math.min(...nodes.map(n=>n._x)), minY = Math.min(...nodes.map(n=>n._y));
+  const maxX = Math.max(...nodes.map(n=>n._x)) + NODE_W, maxY = Math.max(...nodes.map(n=>n._y)) + 120;
+  const treeW = maxX-minX, treeH = maxY-minY;
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: treeW > treeH * 1.2 ? 'landscape':'portrait', unit:'mm', format:'a4' });
+  const pageW = pdf.internal.pageSize.getWidth(), pageH = pdf.internal.pageSize.getHeight();
+
+  pdf.setFillColor(13, 15, 22); pdf.rect(0, 0, pageW, pageH, 'F');
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.setTextColor(220, 224, 248);
+  pdf.text('Szervezeti Ábra', pageW/2, 8, {align:'center'});
+
+  const mmPerPx = Math.min((pageW - 40)/treeW, (pageH - 25)/treeH);
+  const offX = (pageW - treeW*mmPerPx)/2 - minX*mmPerPx;
+  const offY = 17 + (pageH - 25 - treeH*mmPerPx)/2 - minY*mmPerPx;
+
+  nodes.forEach(node => {
+    const [r,g,b] = hexToRgb(node.color || '#4f46e5');
+    pdf.setFillColor(r,g,b);
+    pdf.roundedRect(offX + node._x*mmPerPx, offY + node._y*mmPerPx, NODE_W*mmPerPx, 50*mmPerPx, 2, 2, 'F');
+    pdf.setTextColor(255,255,255); pdf.setFontSize(8);
+    pdf.text(node.name, offX + (node._x + 10)*mmPerPx, offY + (node._y + 15)*mmPerPx);
+  });
+
+  pdf.save('szervezeti_abra.pdf');
+}
+
+// ── Billentyűk ───────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const inModal = document.getElementById('modal-overlay').classList.contains('open');
+  if (e.key==='Enter'&&inModal) confirmModal();
+  if (e.key==='Escape') { if (inModal) closeModal(); else { selectedId=null; render(); applyTransform(); } }
+});
+</script>
+</body>
+</html>

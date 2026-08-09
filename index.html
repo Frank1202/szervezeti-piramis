@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Szervezeti Ábra (Mobilbarát, Védett & Élő)</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <!-- Firebase SDK-k -->
@@ -29,14 +29,18 @@
 html,body{height:100%;overflow:hidden; touch-action: none;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);transition:background .3s,color .3s}
 
-/* Mobilon görgethető eszköztár */
+/* Eszköztár */
 #toolbar{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--toolbar-bg);
   border-bottom:1px solid var(--border);padding:7px 14px;
   display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);transition:background .3s;
   overflow-x:auto; -webkit-overflow-scrolling:touch;}
 #toolbar::-webkit-scrollbar { display: none; }
-#toolbar h1{font-size:14px;font-weight:600;color:var(--text);margin-right:auto;white-space:nowrap; flex-shrink:0;}
-#toolbar h1 span{color:var(--accent)}
+#toolbar h1{font-size:14px;font-weight:600;color:var(--text);margin-right:auto;white-space:nowrap; flex-shrink:0; display:flex; align-items:center; gap:8px;}
+#toolbar h1 span.title-accent{color:var(--accent)}
+
+.count-badge{background:var(--surface2); color:var(--accent); border:1px solid var(--border);
+  padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700; font-family:'DM Mono',monospace;}
+
 .tb-btn{display:flex;align-items:center;gap:4px;padding:8px 12px;border-radius:8px;
   border:1px solid var(--border);background:var(--surface2);color:var(--text2);
   font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;
@@ -92,9 +96,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .field-group input[type=color]{width:100%;height:38px;padding:2px 3px;border-radius:8px;
   border:1px solid var(--border);background:var(--surface2);cursor:pointer;outline:none}
 
-.checkbox-group{display:flex;align-items:center;gap:8px;margin-top:10px;margin-bottom:14px;}
-.checkbox-group input[type="checkbox"]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
-.checkbox-group label{margin-bottom:0;cursor:pointer;user-select:none;font-size:13px;color:var(--text2);}
+.checkbox-group{display:flex;align-items:center;gap:10px;margin-top:12px;margin-bottom:14px; background:var(--surface2); padding:10px 12px; border-radius:8px; border:1px solid var(--border);}
+.checkbox-group input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent);cursor:pointer;}
+.checkbox-group label{margin-bottom:0;cursor:pointer;user-select:none;font-size:13px;color:var(--text); font-weight:500;}
 
 .modal-section-title{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;
   letter-spacing:.06em;margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
@@ -110,7 +114,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 </head>
 <body>
 
-<!-- Bejelentkezési Képernyő (Formba csomagolva) -->
+<!-- Bejelentkezési Képernyő -->
 <div id="auth-overlay" class="open">
   <form id="login-form" class="card-box" onsubmit="handleLogin(event)">
     <h3>Bejelentkezés</h3>
@@ -123,9 +127,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
       <input type="password" id="auth-password" name="password" placeholder="••••••••" autocomplete="current-password" required>
     </div>
     
-    <div class="field-group checkbox-group">
+    <div class="field-group checkbox-group" style="background:transparent; border:none; padding:0;">
       <input type="checkbox" id="auth-remember" checked>
-      <label for="auth-remember">Bejelentkezési adatok megjegyzése</label>
+      <label for="auth-remember" style="color:var(--text2); font-weight:normal;">Bejelentkezési adatok megjegyzése</label>
     </div>
 
     <div id="auth-error"></div>
@@ -137,7 +141,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 
 <!-- Eszköztár -->
 <div id="toolbar">
-  <h1>Szervezeti <span>Ábra</span></h1>
+  <h1>
+    <span>Szervezeti <span class="title-accent">Ábra</span></span>
+    <span id="total-badge" class="count-badge" title="Aktív tagok létszáma">0 fő</span>
+  </h1>
   <span id="save-dot" title="Felhő szinkronizáció státusz"></span>
   <div class="tb-sep"></div>
   <button class="tb-btn primary" onclick="openAddModal(null,true)">＋ Gyökér</button>
@@ -179,6 +186,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 <div id="modal-overlay" onclick="if(event.target===this)closeModal()">
   <div id="modal" class="card-box">
     <h3 id="modal-title">Személy szerkesztése</h3>
+    
+    <div class="checkbox-group">
+      <input type="checkbox" id="inp-active" checked>
+      <label for="inp-active">Aktív tag (beleszámít a struktúrába)</label>
+    </div>
+
     <div class="modal-section-title">Alapadatok</div>
     <div class="field-group"><label>Név</label>
       <input type="text" id="inp-name" placeholder="Pl. Kovács János" autocomplete="off"></div>
@@ -205,13 +218,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 <script>
 // ── Firebase Konfiguráció ───────────────────────────────────────────────────
 const firebaseConfig = {
-  apiKey: "AIzaSyBCl7HNd5DVRIkcByFpew_cFJSvSSBfn68",
-  authDomain: "szervezeti-piramis.firebaseapp.com",
-  databaseURL: "https://szervezeti-piramis-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "szervezeti-piramis",
-  storageBucket: "szervezeti-piramis.firebasestorage.app",
-  messagingSenderId: "516508964137",
-  appId: "1:516508964137:web:65e2291407f443f7ed1338"
+  apiKey: "IDE_MÁSOLD_AZ_API_KEY-T",
+  authDomain: "PROJEKTID.firebaseapp.com",
+  databaseURL: "https://PROJEKTID-default-rtdb.firebaseio.com",
+  projectId: "PROJEKTID",
+  storageBucket: "PROJEKTID.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -221,7 +234,6 @@ const orgRef = db.ref('orgData');
 
 let dbListener = null;
 
-// Betöltéskor ellenőrizzük a megjegyzett emailt
 document.addEventListener('DOMContentLoaded', () => {
   const savedEmail = localStorage.getItem('remembered_email');
   if (savedEmail) {
@@ -319,13 +331,26 @@ let tree = null, nextId = 1, selectedId = null;
 let modalMode = null, modalParentId = null, editingId = null;
 let vx = 0, vy = 0, vscale = 1;
 
-// ── Fa Segédfüggvények ──────────────────────────────────────────────────────
-function makeNode(name, role, nccInv, nccId, bcId, color) {
+// ── Fa & Számláló Segédfüggvények ──────────────────────────────────────────
+function makeNode(name, role, nccInv, nccId, bcId, color, active = true) {
   return { id: nextId++, name, role,
     nccInv: nccInv||'', nccId: nccId||'', bcId: bcId||'',
     color: color || DEFAULT_COLORS[0],
+    active: active !== false,
     depth: 0, children: [] };
 }
+
+function countActiveSubtree(node) {
+  if (!node) return 0;
+  let count = (node.active !== false) ? 1 : 0;
+  if (node.children && node.children.length) {
+    for (const child of node.children) {
+      count += countActiveSubtree(child);
+    }
+  }
+  return count;
+}
+
 function findNode(node, id) {
   if (!node) return null;
   if (node.id === id) return node;
@@ -340,6 +365,7 @@ function deleteNodeById(node, id) {
 function fixDepths(node, d) {
   if (!node) return;
   node.depth = d;
+  if (node.active === undefined) node.active = true;
   if (!node.children) node.children = [];
   if (!node.color) node.color = DEFAULT_COLORS[Math.min(d, DEFAULT_COLORS.length-1)];
   node.children.forEach(c => fixDepths(c, d + 1));
@@ -386,6 +412,10 @@ function render() {
   document.getElementById('btn-child').disabled = !selectedId;
   document.getElementById('btn-del').disabled = !selectedId;
 
+  // Fejléc számláló frissítése
+  const totalActive = countActiveSubtree(tree);
+  document.getElementById('total-badge').textContent = `${totalActive} fő`;
+
   if (!tree) {
     edgesL.innerHTML = ''; nodesL.innerHTML = '';
     empty.style.display = 'flex'; return;
@@ -400,7 +430,8 @@ function render() {
   function drawEdges(n) {
     (n.children || []).forEach(c => {
       const x1=n._x+NODE_W/2, y1=n._y+99, x2=c._x+NODE_W/2, y2=c._y, my=(y1+y2)/2;
-      eHTML += `<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" fill="none" stroke="${connColor}" stroke-width="1.5" stroke-linecap="round"/>`;
+      const strokeDash = (n.active === false || c.active === false) ? 'stroke-dasharray="4 4" opacity="0.4"' : '';
+      eHTML += `<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" fill="none" stroke="${connColor}" stroke-width="1.5" stroke-linecap="round" ${strokeDash}/>`;
       drawEdges(c);
     });
   }
@@ -411,8 +442,12 @@ function render() {
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
   nodes.forEach(node => {
-    const bg = node.color || DEFAULT_COLORS[Math.min(node.depth, DEFAULT_COLORS.length-1)];
-    const avatarLight = lighten(bg, 52);
+    const isActive = node.active !== false;
+    const bg = isActive 
+      ? (node.color || DEFAULT_COLORS[Math.min(node.depth, DEFAULT_COLORS.length-1)])
+      : '#4a5068'; // Inaktív kártya szürkésebb háttér
+    
+    const avatarLight = lighten(bg, 40);
     const ini = initials(node.name);
     const sel = selectedId === node.id;
     const selStroke = sel ? `stroke="#fff" stroke-width="2.5"` : '';
@@ -424,25 +459,45 @@ function render() {
     ].filter(r => r.val);
 
     const hasIds = idRows.length > 0;
-    const cardH = hasIds ? 38 + 6 + idRows.length * 15 + 10 : 44;
+    let cardH = hasIds ? 38 + 6 + idRows.length * 15 + 10 : 44;
+    
+    // Alatta lévők számlálója ha ki van jelölve a tag
+    const subCount = countActiveSubtree(node);
+    const nodeOpacity = isActive ? "1" : "0.55";
     const actionOpacity = isTouchDevice ? "1" : "0";
 
     nHTML += `
-    <g transform="translate(${node._x},${node._y})" class="node-g" data-id="${node.id}" onclick="selectNode(${node.id})">
+    <g transform="translate(${node._x},${node._y})" class="node-g" data-id="${node.id}" onclick="selectNode(${node.id})" opacity="${nodeOpacity}">
       <rect x="0" y="0" width="${NODE_W}" height="${cardH}" rx="11" fill="${bg}" ${selStroke} style="filter:drop-shadow(0 2px 8px rgba(0,0,0,.22));cursor:pointer"/>
+      
+      <!-- Avatar -->
       <circle cx="24" cy="22" r="14" fill="${avatarLight}" opacity=".38"/>
       <text x="24" y="22" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="600" font-family="DM Mono,monospace" style="pointer-events:none">${esc(ini)}</text>
+      
+      <!-- Név / Inaktív tag -->
       <foreignObject x="46" y="2" width="136" height="22">
         <input xmlns="http://www.w3.org/1999/xhtml" class="svg-name" value="${esc(node.name)}"
           style="width:100%;background:transparent;border:none;outline:none;color:#fff;font-family:DM Sans,sans-serif;font-size:12px;font-weight:600;padding:0;line-height:1;cursor:text"
           onchange="onFieldInput(${node.id},'name',this.value)" onclick="event.stopPropagation()" placeholder="Név"/>
       </foreignObject>
+
+      ${!isActive ? `<text x="46" y="32" fill="#f87171" font-size="8" font-weight="700" font-family="DM Sans,sans-serif" style="pointer-events:none">INAKTÍV</text>` : ''}
+
       ${hasIds ? `
       <line x1="10" y1="38" x2="180" y2="38" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
       ${idRows.map((row, i) => `
         <text x="12" y="${51 + i * 15}" fill="rgba(255,255,255,.5)" font-size="8.5" font-family="DM Sans,sans-serif" style="pointer-events:none">${esc(row.label)}</text>
         <text x="100" y="${51 + i * 15}" fill="rgba(255,255,255,.92)" font-size="8.5" font-family="DM Mono,monospace" font-weight="500" style="pointer-events:none">${esc(row.val)}</text>
       `).join('')}` : ''}
+
+      <!-- Kiválasztott tag alatti létszám jelvény (Pill Badge) -->
+      ${sel ? `
+      <g transform="translate(${NODE_W/2 - 45}, ${cardH + 8})">
+        <rect x="0" y="0" width="90" height="22" rx="11" fill="var(--accent)" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,.3));"/>
+        <text x="45" y="11" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="700" font-family="DM Sans,sans-serif">👥 ${subCount} fő</text>
+      </g>
+      ` : ''}
+
       <g class="node-actions" opacity="${actionOpacity}">
         <rect x="136" y="2" width="24" height="24" rx="6" fill="rgba(255,255,255,.25)" style="cursor:pointer;" onclick="event.stopPropagation();openEditModal(${node.id})"/>
         <text x="148" y="14" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="12" style="pointer-events:none">✎</text>
@@ -497,7 +552,7 @@ function fitView() {
   const maxX=Math.max(...xs)+NODE_W, maxY=Math.max(...ys)+100;
   const tw=maxX-minX, th=maxY-minY;
   const stage=document.getElementById('stage');
-  const sw=stage.clientWidth, sh=stage.clientHeight, pad=24;
+  const sw=stage.clientWidth, sh=stage.clientHeight, pad=32;
   const scale=Math.min((sw-pad*2)/tw,(sh-pad*2)/th,1.2);
   vscale=scale; vx=(sw-tw*scale)/2-minX*scale; vy=(sh-th*scale)/2-minY*scale;
   applyTransform();
@@ -578,6 +633,7 @@ function deleteSelected() {
 
 // ── Modal kezelés ───────────────────────────────────────────────────────────
 function fillModal(node) {
+  document.getElementById('inp-active').checked  = node ? (node.active !== false) : true;
   document.getElementById('inp-name').value    = node ? node.name    : '';
   document.getElementById('inp-ncc-inv').value = node ? node.nccInv : '';
   document.getElementById('inp-ncc-id').value  = node ? node.nccId  : '';
@@ -609,6 +665,7 @@ function openEditModal(id) {
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
 
 function confirmModal() {
+  const active  = document.getElementById('inp-active').checked;
   const name    = document.getElementById('inp-name').value.trim()    || 'Névtelen';
   const nccInv  = document.getElementById('inp-ncc-inv').value.trim();
   const nccId   = document.getElementById('inp-ncc-id').value.trim();
@@ -617,14 +674,14 @@ function confirmModal() {
 
   if (modalMode === 'edit') {
     const node = findNode(tree, editingId);
-    if (node) { node.name=name; node.nccInv=nccInv; node.nccId=nccId; node.bcId=bcId; node.color=color; }
+    if (node) { node.active=active; node.name=name; node.nccInv=nccInv; node.nccId=nccId; node.bcId=bcId; node.color=color; }
   } else if (modalMode === 'root') {
-    tree = makeNode(name,'',nccInv,nccId,bcId,color); tree.depth=0; selectedId=null;
+    tree = makeNode(name,'',nccInv,nccId,bcId,color, active); tree.depth=0; selectedId=null;
   } else {
     const parent = findNode(tree, modalParentId);
     if (parent) {
       if (!parent.children) parent.children = [];
-      const child = makeNode(name,'',nccInv,nccId,bcId,color);
+      const child = makeNode(name,'',nccInv,nccId,bcId,color, active);
       child.depth = parent.depth+1;
       parent.children.push(child);
     }
@@ -646,37 +703,131 @@ function showToast(msg) {
   setTimeout(()=>el.classList.remove('show'),2200);
 }
 
-// ── PDF Export ──────────────────────────────────────────────────────────────
+// ── Szépített PDF Export ────────────────────────────────────────────────────
 function exportPDF() {
   if (!tree) { showToast('Nincs adat'); return; }
   showToast('⏳ PDF készítése...');
   computeLayout();
   const nodes = allNodes(tree);
-  const minX = Math.min(...nodes.map(n=>n._x)), minY = Math.min(...nodes.map(n=>n._y));
-  const maxX = Math.max(...nodes.map(n=>n._x)) + NODE_W, maxY = Math.max(...nodes.map(n=>n._y)) + 120;
-  const treeW = maxX-minX, treeH = maxY-minY;
+  
+  const minX = Math.min(...nodes.map(n=>n._x));
+  const minY = Math.min(...nodes.map(n=>n._y));
+  const maxX = Math.max(...nodes.map(n=>n._x)) + NODE_W;
+  const maxY = Math.max(...nodes.map(n=>n._y)) + 120;
+  const treeW = maxX - minX, treeH = maxY - minY;
 
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ orientation: treeW > treeH * 1.2 ? 'landscape':'portrait', unit:'mm', format:'a4' });
-  const pageW = pdf.internal.pageSize.getWidth(), pageH = pdf.internal.pageSize.getHeight();
+  const isLandscape = treeW > treeH;
+  const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
+  
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
 
-  pdf.setFillColor(13, 15, 22); pdf.rect(0, 0, pageW, pageH, 'F');
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.setTextColor(220, 224, 248);
-  pdf.text('Szervezeti Ábra', pageW/2, 8, {align:'center'});
+  // Fejléc ÉS Háttér sáv
+  pdf.setFillColor(15, 17, 23);
+  pdf.rect(0, 0, pageW, pageH, 'F');
 
-  const mmPerPx = Math.min((pageW - 40)/treeW, (pageH - 25)/treeH);
-  const offX = (pageW - treeW*mmPerPx)/2 - minX*mmPerPx;
-  const offY = 17 + (pageH - 25 - treeH*mmPerPx)/2 - minY*mmPerPx;
+  // Címke és Dátum Fejléc
+  pdf.setFillColor(24, 28, 39);
+  pdf.rect(0, 0, pageW, 16, 'F');
+  
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(12);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('SZERVEZETI ÁBRA', 12, 10.5);
 
+  const totalActiveCount = countActiveSubtree(tree);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9);
+  pdf.setTextColor(129, 140, 248);
+  pdf.text(`Összesen: ${totalActiveCount} aktív fő`, 70, 10.5);
+
+  const dateStr = new Date().toLocaleDateString('hu-HU');
+  pdf.setTextColor(140, 146, 176);
+  pdf.text(`Generálva: ${dateStr}`, pageW - 12, 10.5, { align: 'right' });
+
+  // Méretezés a lapra
+  const padding = 15;
+  const topMargin = 22;
+  const availW = pageW - (padding * 2);
+  const availH = pageH - topMargin - padding;
+  
+  const scale = Math.min(availW / treeW, availH / treeH, 0.85);
+  const offX = padding + (availW - treeW * scale) / 2 - minX * scale;
+  const offY = topMargin + (availH - treeH * scale) / 2 - minY * scale;
+
+  // Kapcsoló vonalak rajzolása
+  pdf.setLineWidth(0.3);
   nodes.forEach(node => {
-    const [r,g,b] = hexToRgb(node.color || '#4f46e5');
-    pdf.setFillColor(r,g,b);
-    pdf.roundedRect(offX + node._x*mmPerPx, offY + node._y*mmPerPx, NODE_W*mmPerPx, 50*mmPerPx, 2, 2, 'F');
-    pdf.setTextColor(255,255,255); pdf.setFontSize(8);
-    pdf.text(node.name, offX + (node._x + 10)*mmPerPx, offY + (node._y + 15)*mmPerPx);
+    (node.children || []).forEach(child => {
+      const x1 = offX + (node._x + NODE_W / 2) * scale;
+      const y1 = offY + (node._y + 44) * scale;
+      const x2 = offX + (child._x + NODE_W / 2) * scale;
+      const y2 = offY + child._y * scale;
+      const midY = (y1 + y2) / 2;
+
+      pdf.setDrawColor(60, 68, 95);
+      pdf.line(x1, y1, x1, midY);
+      pdf.line(x1, midY, x2, midY);
+      pdf.line(x2, midY, x2, y2);
+    });
   });
 
-  pdf.save('szervezeti_abra.pdf');
+  // Kártyák kirajzolása
+  nodes.forEach(node => {
+    const isActive = node.active !== false;
+    const px = offX + node._x * scale;
+    const py = offY + node._y * scale;
+    const idRows = [
+      { label: 'NCC INV:', val: node.nccInv },
+      { label: 'NCC ID:',  val: node.nccId  },
+      { label: 'BC ID:',   val: node.bcId   }
+    ].filter(r => r.val);
+
+    const cardH_PX = idRows.length > 0 ? 38 + 6 + idRows.length * 15 + 10 : 44;
+    const w = NODE_W * scale;
+    const h = cardH_PX * scale;
+
+    const rgb = isActive ? hexToRgb(node.color || '#4f46e5') : [74, 80, 104];
+
+    // Kártya háttér lekererekítve
+    pdf.setFillColor(rgb[0], rgb[1], rgb[2]);
+    pdf.roundedRect(px, py, w, h, 2, 2, 'F');
+
+    // Név
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(Math.max(6, 9 * scale));
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(node.name || 'Névtelen', px + 6 * scale, py + 12 * scale);
+
+    if (!isActive) {
+      pdf.setFontSize(Math.max(4, 6 * scale));
+      pdf.setTextColor(248, 113, 113);
+      pdf.text('INAKTÍV', px + 6 * scale, py + 18 * scale);
+    }
+
+    // Azonosítók
+    if (idRows.length > 0) {
+      pdf.setDrawColor(255, 255, 255);
+      pdf.setLineWidth(0.1);
+      pdf.line(px + 4 * scale, py + 22 * scale, px + w - 4 * scale, py + 22 * scale);
+
+      idRows.forEach((row, idx) => {
+        const rowY = py + (30 + idx * 10) * scale;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(Math.max(4, 6.5 * scale));
+        pdf.setTextColor(200, 205, 225);
+        pdf.text(row.label, px + 6 * scale, rowY);
+
+        pdf.setFont('courier', 'bold');
+        pdf.setTextColor(255, 255, 255);
+        pdf.text(row.val, px + 35 * scale, rowY);
+      });
+    }
+  });
+
+  pdf.save('Szervezeti_Abra.pdf');
+  showToast('✓ PDF letöltve');
 }
 
 // ── Billentyűk ───────────────────────────────────────────────────────────────

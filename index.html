@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Szervezeti Ábra (Mobilbarát, Védett & Élő)</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+
+<!-- External Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <!-- Firebase SDK-k -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -53,7 +56,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 #save-dot.syncing{background:#f59e0b}
 .tb-sep{width:1px;height:20px;background:var(--border);flex-shrink:0}
 
-#stage{position:fixed;top:50px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab; touch-action: none;}
+#stage{position:fixed;top:50px;left:0;right:0;bottom:0;overflow:hidden;cursor:grab; touch-action: none; background:var(--bg);}
 #stage.panning{cursor:grabbing}
 #stage svg{width:100%;height:100%;display:block}
 
@@ -698,145 +701,103 @@ function showToast(msg) {
   setTimeout(()=>el.classList.remove('show'),2200);
 }
 
-// ── Átdolgozott, Ékezet- és Átfedésmentes PDF Export ─────────────────────────
-function fixPdfText(str) {
-  return String(str || '')
-    .replace(/ő/g, 'ö').replace(/Ő/g, 'Ö')
-    .replace(/ű/g, 'ü').replace(/Ű/g, 'Ü');
-}
-
-function exportPDF() {
+// ── Képalapú PDF Export (html2canvas + jsPDF) ────────────────────────────────
+async function exportPDF() {
   if (!tree) { showToast('Nincs adat'); return; }
   showToast('⏳ PDF készítése...');
-  computeLayout();
-  const nodes = allNodes(tree);
-  
-  const minX = Math.min(...nodes.map(n => n._x));
-  const minY = Math.min(...nodes.map(n => n._y));
-  const maxX = Math.max(...nodes.map(n => n._x)) + NODE_W;
-  const maxY = Math.max(...nodes.map(n => n._y)) + 120;
-  const treeW = maxX - minX, treeH = maxY - minY;
 
-  const { jsPDF } = window.jspdf;
-  const isLandscape = treeW > treeH;
-  const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
-  
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
+  const stageEl = document.getElementById('stage');
+  const viewportG = document.getElementById('viewport');
+  const origTransform = viewportG.getAttribute('transform');
 
-  // Háttér
-  pdf.setFillColor(15, 17, 23);
-  pdf.rect(0, 0, pageW, pageH, 'F');
+  try {
+    const prevSelected = selectedId;
+    selectedId = null;
+    render();
 
-  // Fejléc sáv
-  pdf.setFillColor(24, 28, 39);
-  pdf.rect(0, 0, pageW, 16, 'F');
-  
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(12);
-  pdf.setTextColor(255, 255, 255);
-  pdf.text('SZERVEZETI ABRA', 12, 10.5);
+    computeLayout();
+    const nodes = allNodes(tree);
+    const minX = Math.min(...nodes.map(n => n._x));
+    const minY = Math.min(...nodes.map(n => n._y));
+    const maxX = Math.max(...nodes.map(n => n._x)) + NODE_W;
+    const maxY = Math.max(...nodes.map(n => n._y)) + 120;
+    
+    const treeW = maxX - minX;
+    const treeH = maxY - minY;
+    const pad = 40;
 
-  const totalActiveCount = countActiveSubtree(tree);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(129, 140, 248);
-  pdf.text(fixPdfText(`Összesen: ${totalActiveCount} aktív tag`), 70, 10.5);
+    viewportG.setAttribute('transform', `translate(${-minX + pad}, ${-minY + pad}) scale(1)`);
 
-  const dateStr = new Date().toLocaleDateString('hu-HU');
-  pdf.setTextColor(140, 146, 176);
-  pdf.text(`Generalva: ${dateStr}`, pageW - 12, 10.5, { align: 'right' });
+    const captureW = treeW + (pad * 2);
+    const captureH = treeH + (pad * 2);
 
-  // Dinamikus skálázás
-  const padding = 15;
-  const topMargin = 22;
-  const availW = pageW - (padding * 2);
-  const availH = pageH - topMargin - padding;
-  
-  const scale = Math.min(availW / treeW, availH / treeH, 0.85);
-  const offX = padding + (availW - treeW * scale) / 2 - minX * scale;
-  const offY = topMargin + (availH - treeH * scale) / 2 - minY * scale;
-
-  // Összekötő vonalak
-  pdf.setLineWidth(0.3);
-  nodes.forEach(node => {
-    (node.children || []).forEach(child => {
-      const x1 = offX + (node._x + NODE_W / 2) * scale;
-      const y1 = offY + (node._y + 44) * scale;
-      const x2 = offX + (child._x + NODE_W / 2) * scale;
-      const y2 = offY + child._y * scale;
-      const midY = (y1 + y2) / 2;
-
-      pdf.setDrawColor(60, 68, 95);
-      pdf.line(x1, y1, x1, midY);
-      pdf.line(x1, midY, x2, midY);
-      pdf.line(x2, midY, x2, y2);
+    const canvas = await html2canvas(stageEl, {
+      width: captureW,
+      height: captureH,
+      scale: 2,
+      backgroundColor: '#0f1117',
+      useCORS: true,
+      logging: false
     });
-  });
 
-  // Kártyák és Arányos Szövegek
-  nodes.forEach(node => {
-    const isActive = node.active !== false;
-    const px = offX + node._x * scale;
-    const py = offY + node._y * scale;
+    selectedId = prevSelected;
+    if (origTransform) viewportG.setAttribute('transform', origTransform);
+    else applyTransform();
+    render();
 
-    const idRows = [
-      { label: 'NCC INV:', val: node.nccInv },
-      { label: 'NCC ID:',  val: node.nccId  },
-      { label: 'BC ID:',   val: node.bcId   }
-    ].filter(r => r.val);
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    
+    const isLandscape = captureW > captureH;
+    const pdf = new jsPDF({
+      orientation: isLandscape ? 'landscape' : 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
 
-    const baseH = idRows.length > 0 ? 38 + 6 + idRows.length * 15 + 10 : 44;
-    const w = NODE_W * scale;
-    const h = baseH * scale;
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
 
-    const rgb = isActive ? hexToRgb(node.color || '#4f46e5') : [74, 80, 104];
+    pdf.setFillColor(15, 17, 23);
+    pdf.rect(0, 0, pageW, pageH, 'F');
 
-    // Kártyatest
-    pdf.setFillColor(rgb[0], rgb[1], rgb[2]);
-    pdf.roundedRect(px, py, w, h, Math.max(1, 2 * scale), Math.max(1, 2 * scale), 'F');
-
-    // Dinamikus Betűméretek és Sormagasságok
-    const titleFontSize = Math.max(3.5, 8.5 * scale);
-    const subFontSize = Math.max(2.8, 6.5 * scale);
-    const lineStep = Math.max(2.5, 9.5 * scale);
-
-    // Név
+    pdf.setFillColor(24, 28, 39);
+    pdf.rect(0, 0, pageW, 16, 'F');
+    
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(titleFontSize);
+    pdf.setFontSize(11);
     pdf.setTextColor(255, 255, 255);
-    pdf.text(fixPdfText(node.name || 'Névtelen'), px + 6 * scale, py + Math.max(3, 10 * scale));
+    pdf.text('SZERVEZETI ÁBRA', 12, 10.5);
 
-    if (!isActive) {
-      pdf.setFontSize(Math.max(2.5, 5.5 * scale));
-      pdf.setTextColor(248, 113, 113);
-      pdf.text('INAKTIV', px + 6 * scale, py + Math.max(5, 15 * scale));
-    }
+    const totalActiveCount = countActiveSubtree(tree);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(129, 140, 248);
+    pdf.text(`Összesen: ${totalActiveCount} tag`, 65, 10.5);
 
-    // Azonosítók sorai (Arányosan elválasztva)
-    if (idRows.length > 0) {
-      pdf.setDrawColor(255, 255, 255);
-      pdf.setLineWidth(0.1);
-      const divY = py + 22 * scale;
-      pdf.line(px + 4 * scale, divY, px + w - 4 * scale, divY);
+    const dateStr = new Date().toLocaleDateString('hu-HU');
+    pdf.setTextColor(140, 146, 176);
+    pdf.text(`Generálva: ${dateStr}`, pageW - 12, 10.5, { align: 'right' });
 
-      idRows.forEach((row, idx) => {
-        const rowY = divY + (6 * scale) + ((idx + 1) * lineStep);
-        
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(subFontSize);
-        pdf.setTextColor(200, 205, 225);
-        pdf.text(row.label, px + 5 * scale, rowY);
+    const topMargin = 20;
+    const availW = pageW - 20;
+    const availH = pageH - topMargin - 10;
 
-        pdf.setFont('courier', 'bold');
-        pdf.setTextColor(255, 255, 255);
-        pdf.text(fixPdfText(row.val), px + Math.max(18, 48 * scale), rowY);
-      });
-    }
-  });
+    const imgScale = Math.min(availW / captureW, availH / captureH);
+    const finalW = captureW * imgScale;
+    const finalH = captureH * imgScale;
+    const posX = (pageW - finalW) / 2;
+    const posY = topMargin + (availH - finalH) / 2;
 
-  pdf.save('Szervezeti_Abra.pdf');
-  showToast('✓ PDF letöltve');
+    pdf.addImage(imgData, 'PNG', posX, posY, finalW, finalH);
+    pdf.save('Szervezeti_Abra.pdf');
+    showToast('✓ PDF letöltve');
+
+  } catch (err) {
+    if (origTransform) viewportG.setAttribute('transform', origTransform);
+    render();
+    showToast('❌ Hiba történt a PDF generálásakor');
+  }
 }
 
 // ── Billentyűk ───────────────────────────────────────────────────────────────

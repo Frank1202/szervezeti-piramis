@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Szervezeti Ábra (Mobilbarát, Védett & Élő)</title>
+<title>Szervezeti Ábra (Keresővel, Mobilbarát, Védett & Élő)</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 
 <!-- External Libraries -->
@@ -32,17 +32,64 @@
 html,body{height:100%;overflow:hidden; touch-action: none;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);transition:background .3s,color .3s}
 
-/* Eszköztár */
+/* Eszköztár és középre zárt kereső */
 #toolbar{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--toolbar-bg);
   border-bottom:1px solid var(--border);padding:7px 14px;
   display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);transition:background .3s;
   overflow-x:auto; -webkit-overflow-scrolling:touch;}
 #toolbar::-webkit-scrollbar { display: none; }
-#toolbar h1{font-size:14px;font-weight:600;color:var(--text);margin-right:auto;white-space:nowrap; flex-shrink:0; display:flex; align-items:center; gap:8px;}
+#toolbar h1{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap; flex-shrink:0; display:flex; align-items:center; gap:8px;}
 #toolbar h1 span.title-accent{color:var(--accent)}
 
 .count-badge{background:var(--surface2); color:var(--accent); border:1px solid var(--border);
   padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700; font-family:'DM Mono',monospace;}
+
+/* Kereső Konténer */
+#search-container{
+  flex: 1;
+  max-width: 320px;
+  min-width: 140px;
+  margin: 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+#search-input{
+  width: 100%;
+  padding: 6px 28px 6px 30px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  outline: none;
+  transition: all 0.2s;
+}
+#search-input:focus{
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
+}
+.search-icon{
+  position: absolute;
+  left: 10px;
+  font-size: 12px;
+  color: var(--text3);
+  pointer-events: none;
+}
+#search-clear{
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 11px;
+  cursor: pointer;
+  display: none;
+  padding: 2px 4px;
+}
+#search-clear:hover{ color: var(--text); }
 
 .tb-btn{display:flex;align-items:center;gap:4px;padding:8px 12px;border-radius:8px;
   border:1px solid var(--border);background:var(--surface2);color:var(--text2);
@@ -148,6 +195,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
     <span>Szervezeti <span class="title-accent">Ábra</span></span>
     <span id="total-badge" class="count-badge" title="Aktív tagok létszáma">0 tag</span>
   </h1>
+
+  <!-- Keresőmező -->
+  <div id="search-container">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-input" placeholder="Keresés (Név, ID, INV)..." autocomplete="off" oninput="onSearchInput(this.value)">
+    <button id="search-clear" onclick="clearSearch()" title="Keresés törlése">✕</button>
+  </div>
+
   <span id="save-dot" title="Felhő szinkronizáció státusz"></span>
   <div class="tb-sep"></div>
   <button class="tb-btn primary" onclick="openAddModal(null,true)">＋ Gyökér</button>
@@ -221,13 +276,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 <script>
 // ── Firebase Konfiguráció ───────────────────────────────────────────────────
 const firebaseConfig = {
-  apiKey: "AIzaSyBCl7HNd5DVRIkcByFpew_cFJSvSSBfn68",
-  authDomain: "szervezeti-piramis.firebaseapp.com",
-  databaseURL: "https://szervezeti-piramis-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "szervezeti-piramis",
-  storageBucket: "szervezeti-piramis.firebasestorage.app",
-  messagingSenderId: "516508964137",
-  appId: "1:516508964137:web:65e2291407f443f7ed1338"
+  apiKey: "IDE_MÁSOLD_AZ_API_KEY-T",
+  authDomain: "PROJEKTID.firebaseapp.com",
+  databaseURL: "https://PROJEKTID-default-rtdb.firebaseio.com",
+  projectId: "PROJEKTID",
+  storageBucket: "PROJEKTID.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -333,6 +388,47 @@ const DEFAULT_COLORS = ['#4f46e5','#0891b2','#059669','#d97706','#dc2626','#7c3a
 let tree = null, nextId = 1, selectedId = null;
 let modalMode = null, modalParentId = null, editingId = null;
 let vx = 0, vy = 0, vscale = 1;
+let searchTerm = '';
+
+// ── Keresés Logika ──────────────────────────────────────────────────────────
+function onSearchInput(val) {
+  searchTerm = val.trim().toLowerCase();
+  document.getElementById('search-clear').style.display = searchTerm ? 'block' : 'none';
+  render();
+
+  if (searchTerm && tree) {
+    const nodes = allNodes(tree);
+    const matches = nodes.filter(n => matchesSearch(n, searchTerm));
+    if (matches.length === 1) {
+      focusOnNode(matches[0]);
+    }
+  }
+}
+
+function clearSearch() {
+  const input = document.getElementById('search-input');
+  input.value = '';
+  searchTerm = '';
+  document.getElementById('search-clear').style.display = 'none';
+  render();
+}
+
+function matchesSearch(node, query) {
+  if (!query) return true;
+  return (node.name && node.name.toLowerCase().includes(query)) ||
+         (node.nccId && node.nccId.toLowerCase().includes(query)) ||
+         (node.nccInv && node.nccInv.toLowerCase().includes(query)) ||
+         (node.bcId && node.bcId.toLowerCase().includes(query));
+}
+
+function focusOnNode(node) {
+  const stage = document.getElementById('stage');
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  vscale = Math.max(vscale, 0.9);
+  vx = sw / 2 - (node._x + NODE_W / 2) * vscale;
+  vy = sh / 2 - (node._y + 45) * vscale;
+  applyTransform();
+}
 
 // ── Fa & Számláló Segédfüggvények ──────────────────────────────────────────
 function makeNode(name, role, nccInv, nccId, bcId, color, active = true) {
@@ -445,6 +541,8 @@ function render() {
 
   nodes.forEach(node => {
     const isActive = node.active !== false;
+    const isMatched = searchTerm ? matchesSearch(node, searchTerm) : true;
+
     const bg = isActive 
       ? (node.color || DEFAULT_COLORS[Math.min(node.depth, DEFAULT_COLORS.length-1)])
       : '#4a5068';
@@ -452,7 +550,14 @@ function render() {
     const avatarLight = lighten(bg, 40);
     const ini = initials(node.name);
     const sel = selectedId === node.id;
-    const selStroke = sel ? `stroke="#fff" stroke-width="2.5"` : '';
+    
+    // Keresési és kijelölési kiemelések
+    let selStroke = '';
+    if (searchTerm && isMatched) {
+      selStroke = `stroke="#f59e0b" stroke-width="3"`;
+    } else if (sel) {
+      selStroke = `stroke="#fff" stroke-width="2.5"`;
+    }
 
     const idRows = [
       { label: 'NCC INV:', val: node.nccInv },
@@ -464,7 +569,15 @@ function render() {
     let cardH = hasIds ? 38 + 6 + idRows.length * 15 + 10 : 44;
     
     const subCount = countActiveSubtree(node);
-    const nodeOpacity = isActive ? "1" : "0.55";
+    
+    // Átlátszóság keresésnél és inaktivitásnál
+    let nodeOpacity = "1";
+    if (searchTerm) {
+      nodeOpacity = isMatched ? "1" : "0.15";
+    } else if (!isActive) {
+      nodeOpacity = "0.55";
+    }
+
     const actionOpacity = isTouchDevice ? "1" : "0";
 
     nHTML += `
@@ -712,7 +825,9 @@ async function exportPDF() {
 
   try {
     const prevSelected = selectedId;
+    const prevSearch = searchTerm;
     selectedId = null;
+    searchTerm = '';
     render();
 
     computeLayout();
@@ -741,6 +856,7 @@ async function exportPDF() {
     });
 
     selectedId = prevSelected;
+    searchTerm = prevSearch;
     if (origTransform) viewportG.setAttribute('transform', origTransform);
     else applyTransform();
     render();
@@ -804,7 +920,11 @@ async function exportPDF() {
 document.addEventListener('keydown', e => {
   const inModal = document.getElementById('modal-overlay').classList.contains('open');
   if (e.key==='Enter'&&inModal) confirmModal();
-  if (e.key==='Escape') { if (inModal) closeModal(); else { selectedId=null; render(); applyTransform(); } }
+  if (e.key==='Escape') {
+    if (inModal) closeModal();
+    else if (searchTerm) clearSearch();
+    else { selectedId=null; render(); applyTransform(); }
+  }
 });
 </script>
 </body>

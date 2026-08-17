@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Szervezeti Ábra (Keresővel, Mobilbarát, Védett & Élő)</title>
+<title>Szervezeti Ábra (Mobilbarát Keresővel, Védett & Élő)</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 
 <!-- External Libraries -->
@@ -32,7 +32,7 @@
 html,body{height:100%;overflow:hidden; touch-action: none;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);transition:background .3s,color .3s}
 
-/* Eszköztár és középre zárt kereső */
+/* Eszköztár */
 #toolbar{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--toolbar-bg);
   border-bottom:1px solid var(--border);padding:7px 14px;
   display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);transition:background .3s;
@@ -44,7 +44,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .count-badge{background:var(--surface2); color:var(--accent); border:1px solid var(--border);
   padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700; font-family:'DM Mono',monospace;}
 
-/* Kereső Konténer */
+/* Keresőmező alapértelmezett (Asztali) */
 #search-container{
   flex: 1;
   max-width: 320px;
@@ -53,6 +53,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
   position: relative;
   display: flex;
   align-items: center;
+  gap: 6px;
 }
 #search-input{
   width: 100%;
@@ -80,7 +81,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 }
 #search-clear{
   position: absolute;
-  right: 8px;
+  right: 10px;
   background: none;
   border: none;
   color: var(--text3);
@@ -90,6 +91,48 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
   padding: 2px 4px;
 }
 #search-clear:hover{ color: var(--text); }
+#search-toggle-btn{ display: none; }
+#search-close-mobile{ display: none; }
+
+/* Mobil nézet: Ikonos gomb és felugró keresősáv */
+@media (max-width: 768px) {
+  #search-toggle-btn{
+    display: flex;
+  }
+  #search-container{
+    display: none;
+  }
+  #search-container.mobile-open{
+    display: flex !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-width: none;
+    margin: 0;
+    background: var(--toolbar-bg);
+    padding: 7px 12px;
+    z-index: 200;
+  }
+  #search-container.mobile-open #search-input{
+    font-size: 14px;
+    padding: 8px 30px 8px 34px;
+  }
+  #search-container.mobile-open .search-icon{
+    left: 22px;
+    font-size: 14px;
+  }
+  #search-container.mobile-open #search-clear{
+    right: 75px;
+    font-size: 14px;
+  }
+  #search-container.mobile-open #search-close-mobile{
+    display: flex;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
 
 .tb-btn{display:flex;align-items:center;gap:4px;padding:8px 12px;border-radius:8px;
   border:1px solid var(--border);background:var(--surface2);color:var(--text2);
@@ -196,11 +239,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
     <span id="total-badge" class="count-badge" title="Aktív tagok létszáma">0 tag</span>
   </h1>
 
-  <!-- Keresőmező -->
+  <!-- Kereső gomb mobilon -->
+  <button id="search-toggle-btn" class="tb-btn" onclick="toggleMobileSearch(true)" title="Keresés">🔍 Keresés</button>
+
+  <!-- Kereső Konténer -->
   <div id="search-container">
     <span class="search-icon">🔍</span>
     <input type="text" id="search-input" placeholder="Keresés (Név, ID, INV)..." autocomplete="off" oninput="onSearchInput(this.value)">
     <button id="search-clear" onclick="clearSearch()" title="Keresés törlése">✕</button>
+    <button id="search-close-mobile" class="tb-btn" onclick="toggleMobileSearch(false)" title="Bezárás">Bezár</button>
   </div>
 
   <span id="save-dot" title="Felhő szinkronizáció státusz"></span>
@@ -276,13 +323,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 <script>
 // ── Firebase Konfiguráció ───────────────────────────────────────────────────
 const firebaseConfig = {
-  apiKey: "AIzaSyBCl7HNd5DVRIkcByFpew_cFJSvSSBfn68",
-  authDomain: "szervezeti-piramis.firebaseapp.com",
-  databaseURL: "https://szervezeti-piramis-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "szervezeti-piramis",
-  storageBucket: "szervezeti-piramis.firebasestorage.app",
-  messagingSenderId: "516508964137",
-  appId: "1:516508964137:web:65e2291407f443f7ed1338"
+  apiKey: "IDE_MÁSOLD_AZ_API_KEY-T",
+  authDomain: "PROJEKTID.firebaseapp.com",
+  databaseURL: "https://PROJEKTID-default-rtdb.firebaseio.com",
+  projectId: "PROJEKTID",
+  storageBucket: "PROJEKTID.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -391,6 +438,17 @@ let vx = 0, vy = 0, vscale = 1;
 let searchTerm = '';
 
 // ── Keresés Logika ──────────────────────────────────────────────────────────
+function toggleMobileSearch(open) {
+  const sc = document.getElementById('search-container');
+  if (open) {
+    sc.classList.add('mobile-open');
+    setTimeout(() => document.getElementById('search-input').focus(), 60);
+  } else {
+    sc.classList.remove('mobile-open');
+    clearSearch();
+  }
+}
+
 function onSearchInput(val) {
   searchTerm = val.trim().toLowerCase();
   document.getElementById('search-clear').style.display = searchTerm ? 'block' : 'none';
@@ -551,7 +609,6 @@ function render() {
     const ini = initials(node.name);
     const sel = selectedId === node.id;
     
-    // Keresési és kijelölési kiemelések
     let selStroke = '';
     if (searchTerm && isMatched) {
       selStroke = `stroke="#f59e0b" stroke-width="3"`;
@@ -570,7 +627,6 @@ function render() {
     
     const subCount = countActiveSubtree(node);
     
-    // Átlátszóság keresésnél és inaktivitásnál
     let nodeOpacity = "1";
     if (searchTerm) {
       nodeOpacity = isMatched ? "1" : "0.15";
@@ -922,6 +978,7 @@ document.addEventListener('keydown', e => {
   if (e.key==='Enter'&&inModal) confirmModal();
   if (e.key==='Escape') {
     if (inModal) closeModal();
+    else if (document.getElementById('search-container').classList.contains('mobile-open')) toggleMobileSearch(false);
     else if (searchTerm) clearSearch();
     else { selectedId=null; render(); applyTransform(); }
   }

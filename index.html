@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Szervezeti Ábra (Mobilbarát Keresővel, Védett & Élő)</title>
+<title>Szervezeti Ábra (UID & Regisztrációs Dátum)</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 
 <!-- External Libraries -->
@@ -44,7 +44,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .count-badge{background:var(--surface2); color:var(--accent); border:1px solid var(--border);
   padding:2px 8px; border-radius:12px; font-size:11px; font-weight:700; font-family:'DM Mono',monospace;}
 
-/* Keresőmező alapértelmezett (Asztali) */
+/* Keresőmező */
 #search-container{
   flex: 1;
   max-width: 320px;
@@ -94,21 +94,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 #search-toggle-btn{ display: none; }
 #search-close-mobile{ display: none; }
 
-/* Mobil nézet: Ikonos gomb és felugró keresősáv */
+/* Mobil nézet: Keresősáv és felugró nézet */
 @media (max-width: 768px) {
-  #search-toggle-btn{
-    display: flex;
-  }
-  #search-container{
-    display: none;
-  }
+  #search-toggle-btn{ display: flex; }
+  #search-container{ display: none; }
   #search-container.mobile-open{
     display: flex !important;
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    top: 0; left: 0; right: 0; bottom: 0;
     max-width: none;
     margin: 0;
     background: var(--toolbar-bg);
@@ -181,7 +174,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .card-box h3{font-size:16px;font-weight:600;margin-bottom:14px;color:var(--text);text-align:center}
 .field-group{margin-bottom:12px}
 .field-group label{font-size:12px;color:var(--text2);font-weight:500;margin-bottom:4px;display:block}
-.field-group input[type=text], .field-group input[type=email], .field-group input[type=password]{
+.field-group input[type=text], .field-group input[type=email], .field-group input[type=password], .field-group input[type=date]{
   width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);
   background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;
   outline:none;transition:border-color .15s}
@@ -245,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
   <!-- Kereső Konténer -->
   <div id="search-container">
     <span class="search-icon">🔍</span>
-    <input type="text" id="search-input" placeholder="Keresés (Név, ID, INV)..." autocomplete="off" oninput="onSearchInput(this.value)">
+    <input type="text" id="search-input" placeholder="Keresés (Név, UID, INV, Dátum)..." autocomplete="off" oninput="onSearchInput(this.value)">
     <button id="search-clear" onclick="clearSearch()" title="Keresés törlése">✕</button>
     <button id="search-close-mobile" class="tb-btn" onclick="toggleMobileSearch(false)" title="Bezárás">Bezár</button>
   </div>
@@ -301,11 +294,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
     <div class="field-group"><label>Név</label>
       <input type="text" id="inp-name" placeholder="Pl. Kovács János" autocomplete="off"></div>
 
+    <div class="field-group"><label>Regisztráció Dátuma</label>
+      <input type="date" id="inp-reg-date"></div>
+
     <div class="modal-section-title">Azonosítók</div>
+    <div class="field-group"><label>UID:</label>
+      <input type="text" id="inp-uid" placeholder="Pl. 603888" autocomplete="off"></div>
     <div class="field-group"><label>NCC INV:</label>
       <input type="text" id="inp-ncc-inv" placeholder="" autocomplete="off"></div>
-    <div class="field-group"><label>NCC ID:</label>
-      <input type="text" id="inp-ncc-id" placeholder="" autocomplete="off"></div>
     <div class="field-group"><label>BC ID:</label>
       <input type="text" id="inp-bc-id" placeholder="" autocomplete="off"></div>
 
@@ -473,10 +469,12 @@ function clearSearch() {
 
 function matchesSearch(node, query) {
   if (!query) return true;
+  const uidVal = node.uid || node.nccId || '';
   return (node.name && node.name.toLowerCase().includes(query)) ||
-         (node.nccId && node.nccId.toLowerCase().includes(query)) ||
+         (uidVal && uidVal.toLowerCase().includes(query)) ||
          (node.nccInv && node.nccInv.toLowerCase().includes(query)) ||
-         (node.bcId && node.bcId.toLowerCase().includes(query));
+         (node.bcId && node.bcId.toLowerCase().includes(query)) ||
+         (node.regDate && node.regDate.toLowerCase().includes(query));
 }
 
 function focusOnNode(node) {
@@ -489,12 +487,20 @@ function focusOnNode(node) {
 }
 
 // ── Fa & Számláló Segédfüggvények ──────────────────────────────────────────
-function makeNode(name, role, nccInv, nccId, bcId, color, active = true) {
-  return { id: nextId++, name, role,
-    nccInv: nccInv||'', nccId: nccId||'', bcId: bcId||'',
+function makeNode(name, role, nccInv, uid, bcId, color, active = true, regDate = '') {
+  return { 
+    id: nextId++, 
+    name, 
+    role,
+    nccInv: nccInv || '', 
+    uid: uid || '', 
+    bcId: bcId || '',
+    regDate: regDate || new Date().toISOString().split('T')[0],
     color: color || DEFAULT_COLORS[0],
     active: active !== false,
-    depth: 0, children: [] };
+    depth: 0, 
+    children: [] 
+  };
 }
 
 function countActiveSubtree(node) {
@@ -523,6 +529,8 @@ function fixDepths(node, d) {
   if (!node) return;
   node.depth = d;
   if (node.active === undefined) node.active = true;
+  if (node.uid === undefined && node.nccId !== undefined) node.uid = node.nccId;
+  if (node.regDate === undefined) node.regDate = '';
   if (!node.children) node.children = [];
   if (!node.color) node.color = DEFAULT_COLORS[Math.min(d, DEFAULT_COLORS.length-1)];
   node.children.forEach(c => fixDepths(c, d + 1));
@@ -546,7 +554,7 @@ function assignXY(node, x, y) {
   node._y = y;
   let cx = x;
   for (const c of (node.children || [])) {
-    assignXY(c, cx, y + 100 + V_GAP);
+    assignXY(c, cx, y + 115 + V_GAP);
     cx += subtreeWidth(c) + H_GAP;
   }
 }
@@ -585,7 +593,7 @@ function render() {
   let eHTML = '';
   function drawEdges(n) {
     (n.children || []).forEach(c => {
-      const x1=n._x+NODE_W/2, y1=n._y+99, x2=c._x+NODE_W/2, y2=c._y, my=(y1+y2)/2;
+      const x1=n._x+NODE_W/2, y1=n._y+105, x2=c._x+NODE_W/2, y2=c._y, my=(y1+y2)/2;
       const strokeDash = (n.active === false || c.active === false) ? 'stroke-dasharray="4 4" opacity="0.4"' : '';
       eHTML += `<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" fill="none" stroke="${connColor}" stroke-width="1.5" stroke-linecap="round" ${strokeDash}/>`;
       drawEdges(c);
@@ -616,10 +624,12 @@ function render() {
       selStroke = `stroke="#fff" stroke-width="2.5"`;
     }
 
+    const uidVal = node.uid || node.nccId || '';
     const idRows = [
-      { label: 'NCC INV:', val: node.nccInv },
-      { label: 'NCC ID:',  val: node.nccId  },
-      { label: 'BC ID:',   val: node.bcId   },
+      { label: 'UID:',      val: uidVal },
+      { label: 'NCC INV:',  val: node.nccInv },
+      { label: 'BC ID:',    val: node.bcId },
+      { label: 'REG:',      val: node.regDate }
     ].filter(r => r.val);
 
     const hasIds = idRows.length > 0;
@@ -655,7 +665,7 @@ function render() {
       <line x1="10" y1="38" x2="180" y2="38" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
       ${idRows.map((row, i) => `
         <text x="12" y="${51 + i * 15}" fill="rgba(255,255,255,.5)" font-size="8.5" font-family="DM Sans,sans-serif" style="pointer-events:none">${esc(row.label)}</text>
-        <text x="100" y="${51 + i * 15}" fill="rgba(255,255,255,.92)" font-size="8.5" font-family="DM Mono,monospace" font-weight="500" style="pointer-events:none">${esc(row.val)}</text>
+        <text x="90" y="${51 + i * 15}" fill="rgba(255,255,255,.92)" font-size="8.5" font-family="DM Mono,monospace" font-weight="500" style="pointer-events:none">${esc(row.val)}</text>
       `).join('')}` : ''}
 
       ${sel ? `
@@ -716,7 +726,7 @@ function fitView() {
   if (!nodes.length) return;
   const xs = nodes.map(n=>n._x), ys = nodes.map(n=>n._y);
   const minX=Math.min(...xs), minY=Math.min(...ys);
-  const maxX=Math.max(...xs)+NODE_W, maxY=Math.max(...ys)+100;
+  const maxX=Math.max(...xs)+NODE_W, maxY=Math.max(...ys)+115;
   const tw=maxX-minX, th=maxY-minY;
   const stage=document.getElementById('stage');
   const sw=stage.clientWidth, sh=stage.clientHeight, pad=24;
@@ -800,12 +810,13 @@ function deleteSelected() {
 
 // ── Modal kezelés ───────────────────────────────────────────────────────────
 function fillModal(node) {
-  document.getElementById('inp-active').checked  = node ? (node.active !== false) : true;
-  document.getElementById('inp-name').value    = node ? node.name    : '';
-  document.getElementById('inp-ncc-inv').value = node ? node.nccInv : '';
-  document.getElementById('inp-ncc-id').value  = node ? node.nccId  : '';
-  document.getElementById('inp-bc-id').value   = node ? node.bcId   : '';
-  document.getElementById('inp-color').value   = node ? (node.color||'#4f46e5') : '#4f46e5';
+  document.getElementById('inp-active').checked   = node ? (node.active !== false) : true;
+  document.getElementById('inp-name').value     = node ? node.name    : '';
+  document.getElementById('inp-reg-date').value = node ? (node.regDate || '') : new Date().toISOString().split('T')[0];
+  document.getElementById('inp-uid').value      = node ? (node.uid || node.nccId || '') : '';
+  document.getElementById('inp-ncc-inv').value  = node ? node.nccInv : '';
+  document.getElementById('inp-bc-id').value    = node ? node.bcId   : '';
+  document.getElementById('inp-color').value    = node ? (node.color || '#4f46e5') : '#4f46e5';
 }
 
 function openAddModal(parentId, isRoot=false) {
@@ -833,23 +844,34 @@ function closeModal() { document.getElementById('modal-overlay').classList.remov
 
 function confirmModal() {
   const active  = document.getElementById('inp-active').checked;
-  const name    = document.getElementById('inp-name').value.trim()    || 'Névtelen';
+  const name    = document.getElementById('inp-name').value.trim()     || 'Névtelen';
+  const regDate = document.getElementById('inp-reg-date').value;
+  const uid     = document.getElementById('inp-uid').value.trim();
   const nccInv  = document.getElementById('inp-ncc-inv').value.trim();
-  const nccId   = document.getElementById('inp-ncc-id').value.trim();
   const bcId    = document.getElementById('inp-bc-id').value.trim();
   const color   = document.getElementById('inp-color').value;
 
   if (modalMode === 'edit') {
     const node = findNode(tree, editingId);
-    if (node) { node.active=active; node.name=name; node.nccInv=nccInv; node.nccId=nccId; node.bcId=bcId; node.color=color; }
+    if (node) { 
+      node.active = active; 
+      node.name = name; 
+      node.regDate = regDate;
+      node.uid = uid; 
+      node.nccInv = nccInv; 
+      node.bcId = bcId; 
+      node.color = color; 
+    }
   } else if (modalMode === 'root') {
-    tree = makeNode(name,'',nccInv,nccId,bcId,color, active); tree.depth=0; selectedId=null;
+    tree = makeNode(name, '', nccInv, uid, bcId, color, active, regDate); 
+    tree.depth = 0; 
+    selectedId = null;
   } else {
     const parent = findNode(tree, modalParentId);
     if (parent) {
       if (!parent.children) parent.children = [];
-      const child = makeNode(name,'',nccInv,nccId,bcId,color, active);
-      child.depth = parent.depth+1;
+      const child = makeNode(name, '', nccInv, uid, bcId, color, active, regDate);
+      child.depth = parent.depth + 1;
       parent.children.push(child);
     }
   }
@@ -891,7 +913,7 @@ async function exportPDF() {
     const minX = Math.min(...nodes.map(n => n._x));
     const minY = Math.min(...nodes.map(n => n._y));
     const maxX = Math.max(...nodes.map(n => n._x)) + NODE_W;
-    const maxY = Math.max(...nodes.map(n => n._y)) + 120;
+    const maxY = Math.max(...nodes.map(n => n._y)) + 125;
     
     const treeW = maxX - minX;
     const treeH = maxY - minY;

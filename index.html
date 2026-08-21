@@ -437,10 +437,7 @@ let searchTerm = '';
 function calculateMemberLevel(node) {
   if (!node || node.active === false) return { level: 'LV0', direct: 0, total: 0 };
   
-  // Közvetlen aktív gyermekek száma
   const direct = (node.children || []).filter(c => c.active !== false).length;
-  
-  // Teljes aktív csapatméret a tag alatt (önmagát kizárva)
   const total = (node.children || []).reduce((acc, c) => acc + countActiveSubtree(c), 0);
 
   let level = 'LV0';
@@ -582,7 +579,7 @@ function assignXY(node, x, y) {
   node._y = y;
   let cx = x;
   for (const c of (node.children || [])) {
-    assignXY(c, cx, y + 115 + V_GAP);
+    assignXY(c, cx, y + 120 + V_GAP);
     cx += subtreeWidth(c) + H_GAP;
   }
 }
@@ -621,7 +618,7 @@ function render() {
   let eHTML = '';
   function drawEdges(n) {
     (n.children || []).forEach(c => {
-      const x1=n._x+NODE_W/2, y1=n._y+105, x2=c._x+NODE_W/2, y2=c._y, my=(y1+y2)/2;
+      const x1=n._x+NODE_W/2, y1=n._y+110, x2=c._x+NODE_W/2, y2=c._y, my=(y1+y2)/2;
       const strokeDash = (n.active === false || c.active === false) ? 'stroke-dasharray="4 4" opacity="0.4"' : '';
       eHTML += `<path d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}" fill="none" stroke="${connColor}" stroke-width="1.5" stroke-linecap="round" ${strokeDash}/>`;
       drawEdges(c);
@@ -662,7 +659,9 @@ function render() {
     ].filter(r => r.val);
 
     const hasIds = idRows.length > 0;
-    let cardH = hasIds ? 38 + 6 + idRows.length * 15 + 10 : 44;
+    const DIV_Y = 46;
+    const ID_START_Y = 60;
+    const cardH = hasIds ? DIV_Y + 6 + idRows.length * 15 + 8 : DIV_Y + 8;
     
     const subCount = countActiveSubtree(node);
     
@@ -680,31 +679,31 @@ function render() {
       <rect x="0" y="0" width="${NODE_W}" height="${cardH}" rx="11" fill="${bg}" ${selStroke} style="filter:drop-shadow(0 2px 8px rgba(0,0,0,.22));cursor:pointer"/>
       
       <!-- Avatar -->
-      <circle cx="24" cy="22" r="14" fill="${avatarLight}" opacity=".38"/>
-      <text x="24" y="22" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="600" font-family="DM Mono,monospace" style="pointer-events:none">${esc(ini)}</text>
+      <circle cx="24" cy="24" r="14" fill="${avatarLight}" opacity=".38"/>
+      <text x="24" y="24" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="600" font-family="DM Mono,monospace" style="pointer-events:none">${esc(ini)}</text>
       
-      <!-- Név és Szintjelző badge -->
-      <foreignObject x="44" y="2" width="${NODE_W - 106}" height="22">
+      <!-- Név (vonal felett, balra) -->
+      <foreignObject x="46" y="4" width="${NODE_W - 95}" height="22">
         <input xmlns="http://www.w3.org/1999/xhtml" class="svg-name" value="${esc(node.name)}"
           style="width:100%;background:transparent;border:none;outline:none;color:#fff;font-family:DM Sans,sans-serif;font-size:12px;font-weight:600;padding:0;line-height:1;cursor:text"
           onchange="onFieldInput(${node.id},'name',this.value)" onclick="event.stopPropagation()" placeholder="Név"/>
       </foreignObject>
 
-      <!-- Szintjelző Badge (Arany gradiens/szín kiemelés) -->
+      <!-- Szintjelző Badge (Név alatt, a vonal felett) -->
       ${isActive ? `
-      <g transform="translate(${NODE_W - 90}, 4)">
-        <rect x="0" y="0" width="36" height="18" rx="5" fill="#f59e0b" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,.3));"/>
-        <text x="18" y="10" text-anchor="middle" dominant-baseline="central" fill="#000" font-size="9.5" font-weight="700" font-family="DM Mono,monospace">${lvlInfo.level}</text>
+      <g transform="translate(46, 26)">
+        <rect x="0" y="0" width="34" height="15" rx="4" fill="#f59e0b" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,.3));"/>
+        <text x="17" y="8" text-anchor="middle" dominant-baseline="central" fill="#000" font-size="8.5" font-weight="700" font-family="DM Mono,monospace">${lvlInfo.level}</text>
       </g>
-      ` : ''}
-
-      ${!isActive ? `<text x="44" y="32" fill="#f87171" font-size="8" font-weight="700" font-family="DM Sans,sans-serif" style="pointer-events:none">INAKTÍV</text>` : ''}
+      ` : `
+      <text x="46" y="37" fill="#f87171" font-size="8" font-weight="700" font-family="DM Sans,sans-serif" style="pointer-events:none">INAKTÍV</text>
+      `}
 
       ${hasIds ? `
-      <line x1="10" y1="38" x2="180" y2="38" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+      <line x1="10" y1="${DIV_Y}" x2="180" y2="${DIV_Y}" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
       ${idRows.map((row, i) => `
-        <text x="12" y="${51 + i * 15}" fill="rgba(255,255,255,.5)" font-size="8.5" font-family="DM Sans,sans-serif" style="pointer-events:none">${esc(row.label)}</text>
-        <text x="90" y="${51 + i * 15}" fill="rgba(255,255,255,.92)" font-size="8.5" font-family="DM Mono,monospace" font-weight="500" style="pointer-events:none">${esc(row.val)}</text>
+        <text x="12" y="${ID_START_Y + i * 15}" fill="rgba(255,255,255,.5)" font-size="8.5" font-family="DM Sans,sans-serif" style="pointer-events:none">${esc(row.label)}</text>
+        <text x="90" y="${ID_START_Y + i * 15}" fill="rgba(255,255,255,.92)" font-size="8.5" font-family="DM Mono,monospace" font-weight="500" style="pointer-events:none">${esc(row.val)}</text>
       `).join('')}` : ''}
 
       <!-- Kijelölt tag részletes csapatszámlálója -->
@@ -766,7 +765,7 @@ function fitView() {
   if (!nodes.length) return;
   const xs = nodes.map(n=>n._x), ys = nodes.map(n=>n._y);
   const minX=Math.min(...xs), minY=Math.min(...ys);
-  const maxX=Math.max(...xs)+NODE_W, maxY=Math.max(...ys)+115;
+  const maxX=Math.max(...xs)+NODE_W, maxY=Math.max(...ys)+120;
   const tw=maxX-minX, th=maxY-minY;
   const stage=document.getElementById('stage');
   const sw=stage.clientWidth, sh=stage.clientHeight, pad=24;

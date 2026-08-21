@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Szervezeti Ábra (UID & Regisztrációs Dátum)</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<title>Szervezeti Ábra (Szintekkel, UID & Regisztrációs Dátummal)</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@500;700&display=swap" rel="stylesheet">
 
 <!-- External Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -94,7 +94,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 #search-toggle-btn{ display: none; }
 #search-close-mobile{ display: none; }
 
-/* Mobil nézet: Keresősáv és felugró nézet */
+/* Mobil nézet: Keresősáv */
 @media (max-width: 768px) {
   #search-toggle-btn{ display: flex; }
   #search-container{ display: none; }
@@ -238,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
   <!-- Kereső Konténer -->
   <div id="search-container">
     <span class="search-icon">🔍</span>
-    <input type="text" id="search-input" placeholder="Keresés (Név, UID, INV, Dátum)..." autocomplete="off" oninput="onSearchInput(this.value)">
+    <input type="text" id="search-input" placeholder="Keresés (Név, UID, INV, Szint)..." autocomplete="off" oninput="onSearchInput(this.value)">
     <button id="search-clear" onclick="clearSearch()" title="Keresés törlése">✕</button>
     <button id="search-close-mobile" class="tb-btn" onclick="toggleMobileSearch(false)" title="Bezárás">Bezár</button>
   </div>
@@ -433,6 +433,32 @@ let modalMode = null, modalParentId = null, editingId = null;
 let vx = 0, vy = 0, vscale = 1;
 let searchTerm = '';
 
+// ── Szintszámítás Logika ───────────────────────────────────────────────────
+function calculateMemberLevel(node) {
+  if (!node || node.active === false) return { level: 'LV0', direct: 0, total: 0 };
+  
+  // Közvetlen aktív gyermekek száma
+  const direct = (node.children || []).filter(c => c.active !== false).length;
+  
+  // Teljes aktív csapatméret a tag alatt (önmagát kizárva)
+  const total = (node.children || []).reduce((acc, c) => acc + countActiveSubtree(c), 0);
+
+  let level = 'LV0';
+  if (direct >= 5 && total >= 20000) level = 'LV10';
+  else if (direct >= 5 && total >= 10000) level = 'LV9';
+  else if (direct >= 5 && total >= 5000)  level = 'LV8';
+  else if (direct >= 5 && total >= 3000)  level = 'LV7';
+  else if (direct >= 5 && total >= 1000)  level = 'LV6';
+  else if (direct >= 5 && total >= 300)   level = 'LV5';
+  else if (direct >= 5 && total >= 100)   level = 'LV4';
+  else if (direct >= 5 && total >= 30)    level = 'LV3';
+  else if (direct >= 3 && total >= 12)    level = 'LV2';
+  else if (direct >= 3 && total >= 3)     level = 'LV1';
+  else level = 'LV0';
+
+  return { level, direct, total };
+}
+
 // ── Keresés Logika ──────────────────────────────────────────────────────────
 function toggleMobileSearch(open) {
   const sc = document.getElementById('search-container');
@@ -470,11 +496,13 @@ function clearSearch() {
 function matchesSearch(node, query) {
   if (!query) return true;
   const uidVal = node.uid || node.nccId || '';
+  const lvl = calculateMemberLevel(node).level.toLowerCase();
   return (node.name && node.name.toLowerCase().includes(query)) ||
          (uidVal && uidVal.toLowerCase().includes(query)) ||
          (node.nccInv && node.nccInv.toLowerCase().includes(query)) ||
          (node.bcId && node.bcId.toLowerCase().includes(query)) ||
-         (node.regDate && node.regDate.toLowerCase().includes(query));
+         (node.regDate && node.regDate.toLowerCase().includes(query)) ||
+         lvl.includes(query);
 }
 
 function focusOnNode(node) {
@@ -608,6 +636,7 @@ function render() {
   nodes.forEach(node => {
     const isActive = node.active !== false;
     const isMatched = searchTerm ? matchesSearch(node, searchTerm) : true;
+    const lvlInfo = calculateMemberLevel(node);
 
     const bg = isActive 
       ? (node.color || DEFAULT_COLORS[Math.min(node.depth, DEFAULT_COLORS.length-1)])
@@ -650,16 +679,26 @@ function render() {
     <g transform="translate(${node._x},${node._y})" class="node-g" data-id="${node.id}" onclick="selectNode(${node.id})" opacity="${nodeOpacity}">
       <rect x="0" y="0" width="${NODE_W}" height="${cardH}" rx="11" fill="${bg}" ${selStroke} style="filter:drop-shadow(0 2px 8px rgba(0,0,0,.22));cursor:pointer"/>
       
+      <!-- Avatar -->
       <circle cx="24" cy="22" r="14" fill="${avatarLight}" opacity=".38"/>
       <text x="24" y="22" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="600" font-family="DM Mono,monospace" style="pointer-events:none">${esc(ini)}</text>
       
-      <foreignObject x="46" y="2" width="136" height="22">
+      <!-- Név és Szintjelző badge -->
+      <foreignObject x="44" y="2" width="${NODE_W - 106}" height="22">
         <input xmlns="http://www.w3.org/1999/xhtml" class="svg-name" value="${esc(node.name)}"
           style="width:100%;background:transparent;border:none;outline:none;color:#fff;font-family:DM Sans,sans-serif;font-size:12px;font-weight:600;padding:0;line-height:1;cursor:text"
           onchange="onFieldInput(${node.id},'name',this.value)" onclick="event.stopPropagation()" placeholder="Név"/>
       </foreignObject>
 
-      ${!isActive ? `<text x="46" y="32" fill="#f87171" font-size="8" font-weight="700" font-family="DM Sans,sans-serif" style="pointer-events:none">INAKTÍV</text>` : ''}
+      <!-- Szintjelző Badge (Arany gradiens/szín kiemelés) -->
+      ${isActive ? `
+      <g transform="translate(${NODE_W - 90}, 4)">
+        <rect x="0" y="0" width="36" height="18" rx="5" fill="#f59e0b" style="filter:drop-shadow(0 1px 3px rgba(0,0,0,.3));"/>
+        <text x="18" y="10" text-anchor="middle" dominant-baseline="central" fill="#000" font-size="9.5" font-weight="700" font-family="DM Mono,monospace">${lvlInfo.level}</text>
+      </g>
+      ` : ''}
+
+      ${!isActive ? `<text x="44" y="32" fill="#f87171" font-size="8" font-weight="700" font-family="DM Sans,sans-serif" style="pointer-events:none">INAKTÍV</text>` : ''}
 
       ${hasIds ? `
       <line x1="10" y1="38" x2="180" y2="38" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
@@ -668,10 +707,11 @@ function render() {
         <text x="90" y="${51 + i * 15}" fill="rgba(255,255,255,.92)" font-size="8.5" font-family="DM Mono,monospace" font-weight="500" style="pointer-events:none">${esc(row.val)}</text>
       `).join('')}` : ''}
 
+      <!-- Kijelölt tag részletes csapatszámlálója -->
       ${sel ? `
-      <g transform="translate(${NODE_W/2 - 45}, ${cardH + 8})">
-        <rect x="0" y="0" width="90" height="22" rx="11" fill="var(--accent)" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,.3));"/>
-        <text x="45" y="11" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="700" font-family="DM Sans,sans-serif">👥 ${subCount} tag</text>
+      <g transform="translate(${NODE_W/2 - 65}, ${cardH + 8})">
+        <rect x="0" y="0" width="130" height="24" rx="12" fill="var(--accent)" style="filter:drop-shadow(0 2px 6px rgba(0,0,0,.3));"/>
+        <text x="65" y="12" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="10" font-weight="700" font-family="DM Sans,sans-serif">👥 ${subCount} tag (Alatta: ${lvlInfo.total})</text>
       </g>
       ` : ''}
 
